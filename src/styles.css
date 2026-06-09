@@ -90,11 +90,14 @@
 
 :root {
   --radius: 0.25rem;
-  --background: oklch(0.965 0.012 85);
-  --foreground: oklch(0.22 0.012 60);
-  --muted-foreground: oklch(0.22 0.012 60 / 0.55);
-  --card: oklch(0.965 0.012 85);
-  --card-foreground: oklch(0.129 0.042 264.695);
+  --background: oklch(0.985 0.005 300);
+  --foreground: oklch(0.22 0.08 295);
+  --muted-foreground: oklch(0.45 0.05 295);
+  --card: oklch(0.98 0.008 300);
+  --card-foreground: oklch(0.22 0.08 295);
+  --brand: oklch(0.42 0.22 295);
+  --brand-soft: oklch(0.92 0.04 300);
+
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
   --primary: oklch(0.208 0.042 265.755);
