@@ -64,6 +64,7 @@
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
+/* Legacy fixed-slot Ken Burns (kept for fallback) */
 @keyframes ken-burns-1 {
   0%, 28% { opacity: 1; transform: scale(1.05); }
   33%, 100% { opacity: 0; transform: scale(1.15); }
@@ -81,6 +82,14 @@
 .animate-kb-1 { animation: ken-burns-1 18s infinite ease-in-out; }
 .animate-kb-2 { animation: ken-burns-2 18s infinite ease-in-out; }
 .animate-kb-3 { animation: ken-burns-3 18s infinite ease-in-out; }
+
+/* Dynamic JS-driven Ken Burns — applied to the active slide; restarted via JS reflow */
+@keyframes kb-zoom {
+  0%   { transform: scale(1.0) translate(0%, 0%); }
+  50%  { transform: scale(1.08) translate(-1%, -0.5%); }
+  100% { transform: scale(1.12) translate(0.5%, 1%); }
+}
+.animate-kb { animation: kb-zoom 6s ease-in-out both; }
 
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(20px); }

@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
-import { Upload, X, Loader2 } from "lucide-react";
+import { Upload, X, Loader2, Images } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MediaPicker } from "@/components/admin/MediaPicker";
 
 interface ImageUploadProps {
   value?: string | null;
@@ -18,12 +19,13 @@ export function ImageUpload({
   value,
   onChange,
   bucket = "products",
-  folder = "settings",
+  folder = "library",
   aspectRatio = "wide",
   placeholder = "Upload image",
   className,
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
@@ -51,7 +53,7 @@ export function ImageUpload({
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
       />
 
       {value ? (
@@ -76,6 +78,13 @@ export function ImageUpload({
             </button>
             <button
               type="button"
+              onClick={() => setPickerOpen(true)}
+              className="px-3 py-1.5 bg-white text-gray-900 text-xs font-medium rounded-lg hover:bg-gray-50"
+            >
+              Library
+            </button>
+            <button
+              type="button"
               onClick={() => onChange(null)}
               className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600"
             >
@@ -84,20 +93,35 @@ export function ImageUpload({
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          className="w-full border-2 border-dashed border-gray-200 hover:border-violet-300 rounded-xl p-6 flex flex-col items-center gap-2 text-gray-400 hover:text-violet-500 transition-colors disabled:opacity-50"
-        >
-          {uploading ? (
-            <Loader2 size={20} className="animate-spin" />
-          ) : (
-            <Upload size={20} />
-          )}
-          <span className="text-sm">{uploading ? "Uploading…" : placeholder}</span>
-        </button>
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="w-full border-2 border-dashed border-gray-200 hover:border-violet-300 rounded-xl p-6 flex flex-col items-center gap-2 text-gray-400 hover:text-violet-500 transition-colors disabled:opacity-50"
+          >
+            {uploading
+              ? <Loader2 size={20} className="animate-spin" />
+              : <Upload size={20} />}
+            <span className="text-sm">{uploading ? "Uploading…" : placeholder}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-violet-600 transition-colors py-1"
+          >
+            <Images size={12} />
+            Choose from library
+          </button>
+        </div>
       )}
+
+      <MediaPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={url => onChange(url)}
+        selected={value}
+      />
     </div>
   );
 }

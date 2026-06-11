@@ -6,11 +6,10 @@ import {
   FolderOpen,
   Pencil,
   Trash2,
-  X,
   Loader2,
   Check,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AdminHeader } from "@/components/admin/AdminHeader";
@@ -24,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ImageUpload } from "@/components/admin/ImageUpload";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { EmptyState } from "./index";
@@ -241,8 +241,20 @@ function CollectionsPage() {
               <Textarea {...form.register("description")} placeholder="Brief description…" rows={2} className="resize-none" />
             </div>
             <div>
-              <Label className="text-sm font-medium mb-1.5 block">Image URL</Label>
-              <Input {...form.register("image_url")} placeholder="https://…" className="h-10" />
+              <Label className="text-sm font-medium mb-1.5 block">Collection Image</Label>
+              <Controller
+                name="image_url"
+                control={form.control}
+                render={({ field }) => (
+                  <ImageUpload
+                    value={field.value ?? null}
+                    onChange={url => field.onChange(url ?? "")}
+                    folder="collections"
+                    aspectRatio="wide"
+                    placeholder="Upload collection image"
+                  />
+                )}
+              />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>

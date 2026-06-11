@@ -18,7 +18,7 @@ import { Route as AdminHomepageRouteImport } from './routes/admin/homepage'
 import { Route as AdminCollectionsRouteImport } from './routes/admin/collections'
 import { Route as AdminProductsIndexRouteImport } from './routes/admin/products/index'
 import { Route as AdminProductsNewRouteImport } from './routes/admin/products/new'
-import { Route as AdminProductsProductIdRouteImport } from './routes/admin/products/$productId'
+import { Route as AdminProductsProductSlugRouteImport } from './routes/admin/products/$productSlug'
 
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
@@ -65,11 +65,12 @@ const AdminProductsNewRoute = AdminProductsNewRouteImport.update({
   path: '/products/new',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminProductsProductIdRoute = AdminProductsProductIdRouteImport.update({
-  id: '/products/$productId',
-  path: '/products/$productId',
-  getParentRoute: () => AdminRoute,
-} as any)
+const AdminProductsProductSlugRoute =
+  AdminProductsProductSlugRouteImport.update({
+    id: '/products/$productSlug',
+    path: '/products/$productSlug',
+    getParentRoute: () => AdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,7 +80,7 @@ export interface FileRoutesByFullPath {
   '/admin/media': typeof AdminMediaRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/products/$productId': typeof AdminProductsProductIdRoute
+  '/admin/products/$productSlug': typeof AdminProductsProductSlugRoute
   '/admin/products/new': typeof AdminProductsNewRoute
   '/admin/products/': typeof AdminProductsIndexRoute
 }
@@ -90,7 +91,7 @@ export interface FileRoutesByTo {
   '/admin/media': typeof AdminMediaRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin': typeof AdminIndexRoute
-  '/admin/products/$productId': typeof AdminProductsProductIdRoute
+  '/admin/products/$productSlug': typeof AdminProductsProductSlugRoute
   '/admin/products/new': typeof AdminProductsNewRoute
   '/admin/products': typeof AdminProductsIndexRoute
 }
@@ -103,7 +104,7 @@ export interface FileRoutesById {
   '/admin/media': typeof AdminMediaRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/products/$productId': typeof AdminProductsProductIdRoute
+  '/admin/products/$productSlug': typeof AdminProductsProductSlugRoute
   '/admin/products/new': typeof AdminProductsNewRoute
   '/admin/products/': typeof AdminProductsIndexRoute
 }
@@ -117,7 +118,7 @@ export interface FileRouteTypes {
     | '/admin/media'
     | '/admin/settings'
     | '/admin/'
-    | '/admin/products/$productId'
+    | '/admin/products/$productSlug'
     | '/admin/products/new'
     | '/admin/products/'
   fileRoutesByTo: FileRoutesByTo
@@ -128,7 +129,7 @@ export interface FileRouteTypes {
     | '/admin/media'
     | '/admin/settings'
     | '/admin'
-    | '/admin/products/$productId'
+    | '/admin/products/$productSlug'
     | '/admin/products/new'
     | '/admin/products'
   id:
@@ -140,7 +141,7 @@ export interface FileRouteTypes {
     | '/admin/media'
     | '/admin/settings'
     | '/admin/'
-    | '/admin/products/$productId'
+    | '/admin/products/$productSlug'
     | '/admin/products/new'
     | '/admin/products/'
   fileRoutesById: FileRoutesById
@@ -215,11 +216,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProductsNewRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/products/$productId': {
-      id: '/admin/products/$productId'
-      path: '/products/$productId'
-      fullPath: '/admin/products/$productId'
-      preLoaderRoute: typeof AdminProductsProductIdRouteImport
+    '/admin/products/$productSlug': {
+      id: '/admin/products/$productSlug'
+      path: '/products/$productSlug'
+      fullPath: '/admin/products/$productSlug'
+      preLoaderRoute: typeof AdminProductsProductSlugRouteImport
       parentRoute: typeof AdminRoute
     }
   }
@@ -231,7 +232,7 @@ interface AdminRouteChildren {
   AdminMediaRoute: typeof AdminMediaRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
-  AdminProductsProductIdRoute: typeof AdminProductsProductIdRoute
+  AdminProductsProductSlugRoute: typeof AdminProductsProductSlugRoute
   AdminProductsNewRoute: typeof AdminProductsNewRoute
   AdminProductsIndexRoute: typeof AdminProductsIndexRoute
 }
@@ -242,7 +243,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminMediaRoute: AdminMediaRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
-  AdminProductsProductIdRoute: AdminProductsProductIdRoute,
+  AdminProductsProductSlugRoute: AdminProductsProductSlugRoute,
   AdminProductsNewRoute: AdminProductsNewRoute,
   AdminProductsIndexRoute: AdminProductsIndexRoute,
 }

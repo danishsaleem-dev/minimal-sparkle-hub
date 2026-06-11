@@ -2,9 +2,9 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Globe, Megaphone, Image as ImageIcon, Star, BookOpen, Phone,
+  Megaphone, Image as ImageIcon, Star, BookOpen, Phone,
   Save, Loader2, Eye, ChevronDown, ChevronUp, Plus, Trash2,
-  GripVertical, Check,
+  GripVertical, Check, X,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { MediaPicker } from "@/components/admin/MediaPicker";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -192,47 +193,130 @@ function HeroEditor({ data, onSave, saving, saved }: { data: SectionData; onSave
   const [description, setDescription] = useState(String(data.description ?? ""));
   const [ctaText, setCtaText] = useState(String(data.cta_text ?? ""));
   const [ctaLink, setCtaLink] = useState(String(data.cta_link ?? ""));
-  const [bgImage, setBgImage] = useState<string | null>(data.bg_image ? String(data.bg_image) : null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Support both old single bg_image and new bg_images array
+  const rawBgImages = data.bg_images;
+  const initialImages: string[] = Array.isArray(rawBgImages)
+    ? (rawBgImages as string[]).filter(Boolean)
+    : data.bg_image ? [String(data.bg_image)] : [];
+  const [bgImages, setBgImages] = useState<string[]>(initialImages);
+
+  function removeImage(idx: number) {
+    setBgImages(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function addImages(urls: string[]) {
+    setBgImages(prev => {
+      const existing = new Set(prev);
+      return [...prev, ...urls.filter(u => !existing.has(u))];
+    });
+  }
 
   return (
     <div className="space-y-4">
+      {/* Hero images */}
       <div>
-        <Label className="text-sm font-medium mb-1.5 block">Hero Background / Banner Image</Label>
-        <ImageUpload
-          value={bgImage}
-          onChange={setBgImage}
-          folder="homepage/hero"
-          aspectRatio="wide"
-          placeholder="Upload hero background image"
-        />
-        {bgImage && <p className="text-xs text-gray-400 mt-1">This image displays behind the hero text on the homepage.</p>}
+        <div className="flex items-center justify-between mb-1.5">
+          <div>
+            <Label className="text-sm font-medium">Slideshow Images</Label>
+            <p className="text-xs text-gray-400">Multiple images cycle with Ken Burns zoom effect</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPickerOpen(true)}
+            className="gap-1.5 text-xs h-8"
+          >
+            <Plus size={12} /> Add Images
+          </Button>
+        </div>
+
+        {bgImages.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="w-full border-2 border-dashed border-gray-200 hover:border-violet-300 rounded-xl p-6 flex flex-col items-center gap-2 text-gray-400 hover:text-violet-500 transition-colors"
+          >
+            <ImageIcon size={20} />
+            <span className="text-sm">Add hero images</span>
+            <span className="text-xs">Upload or choose from library</span>
+          </button>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {bgImages.map((url, i) => (
+              <div key={url} className="relative group aspect-video rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                <img src={url} alt={`Hero ${i + 1}`} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+                <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded-md font-mono">
+                  {i + 1}/{bgImages.length}
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="aspect-video rounded-xl border-2 border-dashed border-gray-200 hover:border-violet-300 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-violet-500 transition-colors"
+            >
+              <Plus size={16} />
+              <span className="text-xs">Add more</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      <MediaPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={url => addImages([url])}
+        multiple
+        onSelectMultiple={addImages}
+        selected={bgImages}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label className="text-sm font-medium mb-1.5 block">Headline (line 1)</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tiny details." className="h-10" />
+          <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tiny details." className="h-10" />
         </div>
         <div>
           <Label className="text-sm font-medium mb-1.5 block">Headline (line 2)</Label>
-          <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Big statements." className="h-10" />
+          <Input value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="Big statements." className="h-10" />
         </div>
       </div>
       <div>
         <Label className="text-sm font-medium mb-1.5 block">Tagline / Subheading</Label>
-        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Trendy · Minimal · Affordable Luxe" className="h-10" />
+        <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Trendy · Minimal · Affordable Luxe" className="h-10" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label className="text-sm font-medium mb-1.5 block">CTA Button Text</Label>
-          <Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="Shop the Edit" className="h-10" />
+          <Input value={ctaText} onChange={e => setCtaText(e.target.value)} placeholder="Shop the Edit" className="h-10" />
         </div>
         <div>
           <Label className="text-sm font-medium mb-1.5 block">CTA Button Link</Label>
-          <Input value={ctaLink} onChange={(e) => setCtaLink(e.target.value)} placeholder="#products" className="h-10" />
+          <Input value={ctaLink} onChange={e => setCtaLink(e.target.value)} placeholder="#products" className="h-10" />
         </div>
       </div>
-      <SaveButton onClick={() => onSave({ title, subtitle, description, cta_text: ctaText, cta_link: ctaLink, bg_image: bgImage ?? "" })} saving={saving} saved={saved} />
+      <SaveButton
+        onClick={() => onSave({
+          title, subtitle, description,
+          cta_text: ctaText, cta_link: ctaLink,
+          bg_images: bgImages,
+          bg_image: bgImages[0] ?? "",
+        })}
+        saving={saving}
+        saved={saved}
+      />
     </div>
   );
 }

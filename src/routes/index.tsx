@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import hero1 from "@/assets/hero-1.jpg";
@@ -117,6 +118,15 @@ function Index() {
     "Trendy · Minimal · Affordable Luxe";
   const heroCtaText = (hp.hero?.cta_text as string)?.replace(/^"|"$/g, "") ?? "Shop the Edit";
 
+  // Hero slideshow images — prefer DB bg_images array, fall back to single bg_image, then static assets
+  const heroImages: string[] = (() => {
+    const arr = hp.hero?.bg_images;
+    if (Array.isArray(arr) && arr.length > 0) return arr as string[];
+    const single = (hp.hero?.bg_image as string)?.replace(/^"|"$/g, "");
+    if (single) return [single];
+    return [hero1 as string, hero2 as string, hero3 as string];
+  })();
+
   const storyTitle = (hp.story?.title as string)?.replace(/^"|"$/g, "") ?? "Our Story";
   const storyContent =
     (hp.story?.content as string)?.replace(/^"|"$/g, "") ??
@@ -204,9 +214,7 @@ function Index() {
       {/* Hero */}
       <header id="top" className="relative h-[90vh] overflow-hidden flex items-center justify-center text-center px-6">
         <div className="absolute inset-0 z-0" style={{ background: "var(--brand-soft)" }}>
-          <img src={hero1} alt="Minimal accessories" className="absolute inset-0 w-full h-full object-cover animate-kb-1" />
-          <img src={hero2} alt="Gold hoop earrings" loading="lazy" className="absolute inset-0 w-full h-full object-cover animate-kb-2" />
-          <img src={hero3} alt="Layered necklaces" loading="lazy" className="absolute inset-0 w-full h-full object-cover animate-kb-3" />
+          <HeroSlideshow images={heroImages} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, oklch(0.22 0.08 295 / 0.35), oklch(0.22 0.08 295 / 0.55))" }} />
         </div>
 
@@ -423,5 +431,50 @@ function Index() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Ken Burns slideshow — each image gets a fresh zoom animation when it becomes active
+function HeroSlide({ src, active }: { src: string; active: boolean }) {
+  const ref = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !active) return;
+    // Restart the CSS animation by briefly removing it
+    el.style.animation = "none";
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    el.offsetHeight; // force reflow
+    el.style.animation = "";
+  }, [active]);
+
+  return (
+    <img
+      ref={ref}
+      src={src}
+      alt=""
+      loading="lazy"
+      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 animate-kb ${active ? "opacity-100" : "opacity-0"}`}
+    />
+  );
+}
+
+function HeroSlideshow({ images }: { images: string[] }) {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const timer = setInterval(() => {
+      setIdx(i => (i + 1) % images.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  return (
+    <>
+      {images.map((src, i) => (
+        <HeroSlide key={src} src={src} active={i === idx} />
+      ))}
+    </>
   );
 }
