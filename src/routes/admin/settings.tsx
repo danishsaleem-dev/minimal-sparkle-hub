@@ -1,21 +1,13 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Store,
-  Share2,
-  Phone,
-  FileText,
-  Save,
-  Loader2,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { Store, Share2, Phone, FileText, Save, Loader2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUpload } from "@/components/admin/ImageUpload";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -28,6 +20,7 @@ type SettingsMap = Record<string, string | null>;
 function SettingsPage() {
   const qc = useQueryClient();
   const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     brand: true,
     social: true,
@@ -56,17 +49,15 @@ function SettingsPage() {
       const upserts = keys.map((key) => ({
         key,
         value: JSON.stringify(values[key] ?? null) as unknown as never,
-        type: "text",
+        type: key.endsWith("_url") && (key === "logo_url" || key === "favicon_url") ? "image" : "text",
         group,
         label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
       }));
-
-      const { error } = await supabase
-        .from("site_settings")
-        .upsert(upserts, { onConflict: "key" });
-
+      const { error } = await supabase.from("site_settings").upsert(upserts, { onConflict: "key" });
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["site-settings"] });
+      setSaved(group);
+      setTimeout(() => setSaved(null), 2000);
       toast.success("Settings saved");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
@@ -92,91 +83,49 @@ function SettingsPage() {
   return (
     <div>
       <AdminHeader title="Settings" subtitle="Configure your store" />
+      <div className="p-4 sm:p-6 space-y-4">
 
-      <div className="p-4 sm:p-6 space-y-4 max-w-3xl">
-        {/* Brand */}
-        <SettingsSection
-          title="Brand"
-          icon={<Store size={15} />}
-          expanded={expanded.brand}
-          onToggle={() => toggle("brand")}
-        >
+        <SettingsSection title="Brand" icon={<Store size={15} />} expanded={expanded.brand} onToggle={() => toggle("brand")}>
           <BrandSettings
             initial={s}
             onSave={(v) => saveGroup("brand", ["site_name", "tagline", "logo_url", "favicon_url"], v)}
             saving={saving === "brand"}
+            saved={saved === "brand"}
           />
         </SettingsSection>
 
-        {/* Social */}
-        <SettingsSection
-          title="Social Media"
-          icon={<Share2 size={15} />}
-          expanded={expanded.social}
-          onToggle={() => toggle("social")}
-        >
+        <SettingsSection title="Social Media" icon={<Share2 size={15} />} expanded={expanded.social} onToggle={() => toggle("social")}>
           <SocialSettings
             initial={s}
-            onSave={(v) =>
-              saveGroup("social", ["instagram_url", "tiktok_url", "facebook_url", "whatsapp_number"], v)
-            }
+            onSave={(v) => saveGroup("social", ["instagram_url", "tiktok_url", "facebook_url", "whatsapp_number"], v)}
             saving={saving === "social"}
+            saved={saved === "social"}
           />
         </SettingsSection>
 
-        {/* Contact */}
-        <SettingsSection
-          title="Contact Info"
-          icon={<Phone size={15} />}
-          expanded={expanded.contact}
-          onToggle={() => toggle("contact")}
-        >
+        <SettingsSection title="Contact Info" icon={<Phone size={15} />} expanded={expanded.contact} onToggle={() => toggle("contact")}>
           <ContactSettings
             initial={s}
             onSave={(v) => saveGroup("contact", ["contact_email", "contact_phone"], v)}
             saving={saving === "contact"}
+            saved={saved === "contact"}
           />
         </SettingsSection>
 
-        {/* Policies */}
-        <SettingsSection
-          title="Policies"
-          icon={<FileText size={15} />}
-          expanded={expanded.policy}
-          onToggle={() => toggle("policy")}
-        >
+        <SettingsSection title="Policies" icon={<FileText size={15} />} expanded={expanded.policy} onToggle={() => toggle("policy")}>
           <PolicySettings
             initial={s}
             onSave={(v) => saveGroup("policy", ["shipping_policy", "return_policy"], v)}
             saving={saving === "policy"}
+            saved={saved === "policy"}
           />
         </SettingsSection>
-
-        {/* Supabase Info */}
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-          <p className="text-sm font-semibold text-amber-800 mb-1">Supabase Setup Required</p>
-          <p className="text-xs text-amber-700">
-            Set <code className="bg-amber-100 px-1 rounded">VITE_SUPABASE_URL</code> and{" "}
-            <code className="bg-amber-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> in your{" "}
-            <code className="bg-amber-100 px-1 rounded">.env</code> file, then run{" "}
-            <code className="bg-amber-100 px-1 rounded">supabase/schema.sql</code> in your Supabase SQL editor.
-            Also create a storage bucket named <code className="bg-amber-100 px-1 rounded">products</code> (public).
-          </p>
-        </div>
       </div>
     </div>
   );
 }
 
-function BrandSettings({
-  initial,
-  onSave,
-  saving,
-}: {
-  initial: SettingsMap;
-  onSave: (v: SettingsMap) => void;
-  saving: boolean;
-}) {
+function BrandSettings({ initial, onSave, saving, saved }: { initial: SettingsMap; onSave: (v: SettingsMap) => void; saving: boolean; saved: boolean }) {
   const [vals, setVals] = useState<SettingsMap>({
     site_name: initial.site_name ?? "",
     tagline: initial.tagline ?? "",
@@ -194,28 +143,34 @@ function BrandSettings({
           <Input value={vals.tagline ?? ""} onChange={(e) => setVals((p) => ({ ...p, tagline: e.target.value }))} placeholder="Trendy · Minimal · Affordable Luxe" className="h-10" />
         </SettingField>
       </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <SettingField label="Logo URL">
-          <Input value={vals.logo_url ?? ""} onChange={(e) => setVals((p) => ({ ...p, logo_url: e.target.value }))} placeholder="https://…" className="h-10" />
+        <SettingField label="Logo">
+          <ImageUpload
+            value={vals.logo_url}
+            onChange={(url) => setVals((p) => ({ ...p, logo_url: url }))}
+            folder="settings/logo"
+            aspectRatio="auto"
+            placeholder="Upload logo"
+          />
         </SettingField>
-        <SettingField label="Favicon URL">
-          <Input value={vals.favicon_url ?? ""} onChange={(e) => setVals((p) => ({ ...p, favicon_url: e.target.value }))} placeholder="https://…/favicon.ico" className="h-10" />
+        <SettingField label="Favicon">
+          <ImageUpload
+            value={vals.favicon_url}
+            onChange={(url) => setVals((p) => ({ ...p, favicon_url: url }))}
+            folder="settings/favicon"
+            aspectRatio="square"
+            placeholder="Upload favicon"
+          />
         </SettingField>
       </div>
-      <SaveBtn saving={saving} onClick={() => onSave(vals)} />
+
+      <SaveBtn saving={saving} saved={saved} onClick={() => onSave(vals)} />
     </div>
   );
 }
 
-function SocialSettings({
-  initial,
-  onSave,
-  saving,
-}: {
-  initial: SettingsMap;
-  onSave: (v: SettingsMap) => void;
-  saving: boolean;
-}) {
+function SocialSettings({ initial, onSave, saving, saved }: { initial: SettingsMap; onSave: (v: SettingsMap) => void; saving: boolean; saved: boolean }) {
   const [vals, setVals] = useState<SettingsMap>({
     instagram_url: initial.instagram_url ?? "",
     tiktok_url: initial.tiktok_url ?? "",
@@ -227,10 +182,10 @@ function SocialSettings({
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <SettingField label="Instagram URL">
-          <Input value={vals.instagram_url ?? ""} onChange={(e) => setVals((p) => ({ ...p, instagram_url: e.target.value }))} placeholder="https://instagram.com/…" className="h-10" />
+          <Input value={vals.instagram_url ?? ""} onChange={(e) => setVals((p) => ({ ...p, instagram_url: e.target.value }))} placeholder="https://instagram.com/byareeqaan" className="h-10" />
         </SettingField>
         <SettingField label="TikTok URL">
-          <Input value={vals.tiktok_url ?? ""} onChange={(e) => setVals((p) => ({ ...p, tiktok_url: e.target.value }))} placeholder="https://tiktok.com/@…" className="h-10" />
+          <Input value={vals.tiktok_url ?? ""} onChange={(e) => setVals((p) => ({ ...p, tiktok_url: e.target.value }))} placeholder="https://tiktok.com/@by_areeqan" className="h-10" />
         </SettingField>
         <SettingField label="Facebook URL">
           <Input value={vals.facebook_url ?? ""} onChange={(e) => setVals((p) => ({ ...p, facebook_url: e.target.value }))} placeholder="https://facebook.com/…" className="h-10" />
@@ -239,20 +194,12 @@ function SocialSettings({
           <Input value={vals.whatsapp_number ?? ""} onChange={(e) => setVals((p) => ({ ...p, whatsapp_number: e.target.value }))} placeholder="923364246604 (no +)" className="h-10" />
         </SettingField>
       </div>
-      <SaveBtn saving={saving} onClick={() => onSave(vals)} />
+      <SaveBtn saving={saving} saved={saved} onClick={() => onSave(vals)} />
     </div>
   );
 }
 
-function ContactSettings({
-  initial,
-  onSave,
-  saving,
-}: {
-  initial: SettingsMap;
-  onSave: (v: SettingsMap) => void;
-  saving: boolean;
-}) {
+function ContactSettings({ initial, onSave, saving, saved }: { initial: SettingsMap; onSave: (v: SettingsMap) => void; saving: boolean; saved: boolean }) {
   const [vals, setVals] = useState<SettingsMap>({
     contact_email: initial.contact_email ?? "",
     contact_phone: initial.contact_phone ?? "",
@@ -268,20 +215,12 @@ function ContactSettings({
           <Input value={vals.contact_phone ?? ""} onChange={(e) => setVals((p) => ({ ...p, contact_phone: e.target.value }))} placeholder="+92 336 4246604" className="h-10" />
         </SettingField>
       </div>
-      <SaveBtn saving={saving} onClick={() => onSave(vals)} />
+      <SaveBtn saving={saving} saved={saved} onClick={() => onSave(vals)} />
     </div>
   );
 }
 
-function PolicySettings({
-  initial,
-  onSave,
-  saving,
-}: {
-  initial: SettingsMap;
-  onSave: (v: SettingsMap) => void;
-  saving: boolean;
-}) {
+function PolicySettings({ initial, onSave, saving, saved }: { initial: SettingsMap; onSave: (v: SettingsMap) => void; saving: boolean; saved: boolean }) {
   const [vals, setVals] = useState<SettingsMap>({
     shipping_policy: initial.shipping_policy ?? "",
     return_policy: initial.return_policy ?? "",
@@ -295,36 +234,20 @@ function PolicySettings({
       <SettingField label="Return Policy">
         <Textarea value={vals.return_policy ?? ""} onChange={(e) => setVals((p) => ({ ...p, return_policy: e.target.value }))} placeholder="Easy returns within 7 days…" rows={3} className="resize-none" />
       </SettingField>
-      <SaveBtn saving={saving} onClick={() => onSave(vals)} />
+      <SaveBtn saving={saving} saved={saved} onClick={() => onSave(vals)} />
     </div>
   );
 }
 
-function SettingsSection({
-  title,
-  icon,
-  expanded,
-  onToggle,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  expanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
+function SettingsSection({ title, icon, expanded, onToggle, children }: {
+  title: string; icon: React.ReactNode; expanded: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors"
-      >
+      <button type="button" onClick={onToggle} className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors">
         <span className="text-violet-600">{icon}</span>
         <span className="font-semibold text-sm text-gray-900">{title}</span>
-        <span className="ml-auto text-gray-400">
-          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </span>
+        <span className="ml-auto text-gray-400">{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
       </button>
       {expanded && <div className="px-5 pb-5">{children}</div>}
     </div>
@@ -340,18 +263,14 @@ function SettingField({ label, children }: { label: string; children: React.Reac
   );
 }
 
-function SaveBtn({ saving, onClick }: { saving: boolean; onClick: () => void }) {
+function SaveBtn({ saving, saved, onClick }: { saving: boolean; saved: boolean; onClick: () => void }) {
   return (
     <div className="flex justify-end pt-2">
-      <Button
-        type="button"
-        onClick={onClick}
-        disabled={saving}
-        className="bg-violet-600 hover:bg-violet-700 text-white gap-2"
-        size="sm"
-      >
-        {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-        Save
+      <Button type="button" onClick={onClick} disabled={saving}
+        className={saved ? "bg-emerald-600 hover:bg-emerald-700 text-white gap-2" : "bg-violet-600 hover:bg-violet-700 text-white gap-2"}
+        size="sm">
+        {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} /> : <Save size={13} />}
+        {saved ? "Saved!" : "Save"}
       </Button>
     </div>
   );
