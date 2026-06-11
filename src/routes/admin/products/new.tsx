@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Button } from "@/components/ui/button";
-import { ProductForm, type ProductFormValues, type Collection } from "@/components/admin/ProductForm";
+import { ProductForm, type ProductFormValues } from "@/components/admin/ProductForm";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -16,18 +16,6 @@ function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const qc = useQueryClient();
-
-  const { data: collections = [] } = useQuery<Collection[]>({
-    queryKey: ["admin-collections-list"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("collections")
-        .select("id, name, slug")
-        .order("name");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
 
   async function handleSubmit(
     values: ProductFormValues,
@@ -62,11 +50,7 @@ function NewProductPage() {
       if (images.length > 0) {
         await supabase.from("product_images").insert(
           images.map((img, i) => ({
-            product_id: product.id,
-            url: img.url,
-            alt: img.alt ?? null,
-            position: i,
-            is_primary: img.is_primary,
+            product_id: product.id, url: img.url, alt: img.alt ?? null, position: i, is_primary: img.is_primary,
           }))
         );
       }
@@ -75,11 +59,7 @@ function NewProductPage() {
       if (videos.length > 0) {
         await supabase.from("product_videos").insert(
           videos.map((vid, i) => ({
-            product_id: product.id,
-            url: vid.url,
-            thumbnail_url: vid.thumbnail_url ?? null,
-            title: vid.title ?? null,
-            position: i,
+            product_id: product.id, url: vid.url, thumbnail_url: vid.thumbnail_url ?? null, title: vid.title ?? null, position: i,
           }))
         );
       }
@@ -87,14 +67,9 @@ function NewProductPage() {
       if (values.variants && values.variants.length > 0) {
         await supabase.from("product_variants").insert(
           values.variants.map((v, i) => ({
-            product_id: product.id,
-            title: v.title,
-            sku: v.sku ?? null,
-            price: v.price ?? null,
-            compare_price: v.compare_price ?? null,
-            inventory_quantity: v.inventory_quantity,
-            available: v.available,
-            position: i,
+            product_id: product.id, title: v.title, sku: v.sku ?? null,
+            price: v.price ?? null, compare_price: v.compare_price ?? null,
+            inventory_quantity: v.inventory_quantity, available: v.available, position: i,
           }))
         );
       }
@@ -132,7 +107,6 @@ function NewProductPage() {
       />
       <div className="p-4 sm:p-6">
         <ProductForm
-          collections={collections}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
           submitLabel="Create Product"
