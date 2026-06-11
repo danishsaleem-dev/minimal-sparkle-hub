@@ -4,6 +4,37 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Performance & rendering ─────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img, video {
+  max-width: 100%;
+  height: auto;
+  /* Reserve space based on width/height attrs to prevent CLS */
+  content-visibility: auto;
+}
+
+/* Respect reduced-motion preference for Ken Burns */
+@media (prefers-reduced-motion: reduce) {
+  .animate-kb, .animate-kb-1, .animate-kb-2, .animate-kb-3 {
+    animation: none !important;
+  }
+  .transition-opacity { transition-duration: 0.1s !important; }
+  .fade-up { animation-duration: 0.1s !important; }
+}
+
 /*
  * Design system definition.
  *

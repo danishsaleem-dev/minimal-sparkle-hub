@@ -11,25 +11,37 @@ import product4 from "@/assets/product-4.jpg";
 import storyImg from "@/assets/story.jpg";
 import logo from "@/assets/logo.png";
 import { supabase } from "@/lib/supabase";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION, productListSchema } from "@/lib/seo";
+
+const PAGE_TITLE = `${SITE_NAME} — Minimal Fashion Accessories Pakistan`;
+const OG_IMAGE = hero1 as string;
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "By Areeqaan — Minimal Fashion Accessories" },
-      {
-        name: "description",
-        content:
-          "By Areeqaan crafts trendy, minimal & affordable luxe fashion accessories. Tiny details, big statements. Delivery all over Pakistan.",
-      },
-      { property: "og:title", content: "By Areeqaan — Fashion Accessories" },
-      {
-        property: "og:description",
-        content:
-          "Trendy • Minimal • Affordable luxe. Tiny details, big statements. Delivery all over Pakistan.",
-      },
-      { property: "og:image", content: hero1 },
+      { title: PAGE_TITLE },
+      { name: "description", content: SITE_DESCRIPTION },
+      // Open Graph
+      { property: "og:title", content: PAGE_TITLE },
+      { property: "og:description", content: SITE_DESCRIPTION },
+      { property: "og:image", content: OG_IMAGE },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "By Areeqaan — Minimal jewellery accessories" },
+      { property: "og:url", content: SITE_URL + "/" },
+      { property: "og:type", content: "website" },
+      // Twitter
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: hero1 },
+      { name: "twitter:title", content: PAGE_TITLE },
+      { name: "twitter:description", content: SITE_DESCRIPTION },
+      { name: "twitter:image", content: OG_IMAGE },
+      { name: "twitter:image:alt", content: "By Areeqaan accessories" },
+    ],
+    links: [
+      // Self-canonical
+      { rel: "canonical", href: SITE_URL + "/" },
+      // Preload LCP hero image (static fallback — always shown on first render)
+      { rel: "preload", href: hero1 as string, as: "image", fetchpriority: "high" },
     ],
   }),
   component: Index,
@@ -175,11 +187,22 @@ function Index() {
           img: p.img as string | null,
         }));
 
+  // Page-specific JSON-LD
+  const ldProductList = productListSchema(
+    showProducts.map(p => ({ name: p.name, price: p.price, img: p.img, material: p.material }))
+  );
+
   return (
     <div
       className="min-h-screen bg-background text-foreground antialiased"
       style={{ fontFamily: "var(--font-body)" }}
     >
+      {/* Page-specific JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(ldProductList) }}
+      />
+
       {/* Announcement */}
       {announcementEnabled && (
         <div
@@ -193,7 +216,7 @@ function Index() {
       {/* Nav */}
       <nav className="sticky top-0 z-50 w-full bg-background/85 backdrop-blur-md border-b border-foreground/5 px-6 py-3 flex justify-between items-center">
         <a href="#top" className="flex items-center gap-3">
-          <img src={logo} alt="By Areeqaan logo" className="h-11 w-auto" />
+          <img src={logo} alt="By Areeqaan logo" width={220} height={60} className="h-11 w-auto" decoding="async" />
         </a>
         <div className="hidden md:flex gap-8 text-[11px] font-medium uppercase tracking-widest">
           <a href="#shop" className="hover:text-[var(--brand)] transition-colors">Shop</a>
@@ -219,7 +242,7 @@ function Index() {
         </div>
 
         <div className="relative z-10 max-w-2xl fade-up">
-          <img src={logo} alt="By Areeqaan" className="h-24 md:h-32 w-auto mx-auto mb-6 brightness-0 invert opacity-95" />
+          <img src={logo} alt="By Areeqaan" width={300} height={80} fetchPriority="high" decoding="sync" className="h-24 md:h-32 w-auto mx-auto mb-6 brightness-0 invert opacity-95" />
           <h1
             className="text-4xl md:text-6xl italic text-white text-balance leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
@@ -284,6 +307,9 @@ function Index() {
                     src={p.img as string}
                     alt={p.name}
                     loading="lazy"
+                    decoding="async"
+                    width={400}
+                    height={500}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                 ) : (
@@ -367,8 +393,11 @@ function Index() {
         <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
           <img
             src={storyImg}
-            alt="Detail of accessory styling"
+            alt="Detailed close-up of By Areeqaan jewellery accessories"
             loading="lazy"
+            decoding="async"
+            width={800}
+            height={500}
             className="w-full aspect-[16/10] object-cover"
           />
           <div className="max-w-md">
@@ -398,7 +427,7 @@ function Index() {
       <footer className="bg-background border-t border-foreground/5 py-16 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12">
           <div className="space-y-4 max-w-xs">
-            <img src={logo} alt="By Areeqaan" className="h-12 w-auto" />
+            <img src={logo} alt="By Areeqaan" width={220} height={60} loading="lazy" decoding="async" className="h-12 w-auto" />
             <p className="text-xs text-muted-foreground leading-relaxed">
               Fashion accessories made for the everyday. Trendy, minimal, and affordable luxe —
               handpicked with love in Pakistan.
@@ -435,16 +464,15 @@ function Index() {
 }
 
 // Ken Burns slideshow — each image gets a fresh zoom animation when it becomes active
-function HeroSlide({ src, active }: { src: string; active: boolean }) {
+function HeroSlide({ src, active, priority }: { src: string; active: boolean; priority: boolean }) {
   const ref = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el || !active) return;
-    // Restart the CSS animation by briefly removing it
     el.style.animation = "none";
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    el.offsetHeight; // force reflow
+    el.offsetHeight; // force reflow to restart animation
     el.style.animation = "";
   }, [active]);
 
@@ -453,7 +481,12 @@ function HeroSlide({ src, active }: { src: string; active: boolean }) {
       ref={ref}
       src={src}
       alt=""
-      loading="lazy"
+      // First slide is the LCP — load eagerly with high fetch priority
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "low"}
+      decoding={priority ? "sync" : "async"}
+      width={1920}
+      height={1080}
       className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 animate-kb ${active ? "opacity-100" : "opacity-0"}`}
     />
   );
@@ -473,7 +506,7 @@ function HeroSlideshow({ images }: { images: string[] }) {
   return (
     <>
       {images.map((src, i) => (
-        <HeroSlide key={src} src={src} active={i === idx} />
+        <HeroSlide key={src} src={src} active={i === idx} priority={i === 0} />
       ))}
     </>
   );
