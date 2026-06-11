@@ -115,17 +115,46 @@ export function ProductForm({
 
   const nameValue = form.watch("name");
   const shortDescValue = form.watch("short_description");
+  const materialValue = form.watch("material");
   const statusValue = form.watch("status");
   const featuredValue = form.watch("featured");
+  const seoDescValue = form.watch("seo_description") ?? "";
+
+  function buildSeoTitle(name: string, material?: string) {
+    const mat = material?.trim();
+    return mat
+      ? `${name} – ${mat} | By Areeqaan`
+      : `${name} | By Areeqaan – Trendy Minimal Jewelry`;
+  }
+
+  function buildSeoDescription(name: string, shortDesc?: string, material?: string) {
+    const parts: string[] = [];
+    parts.push(`Shop ${name} at By Areeqaan.`);
+    if (shortDesc?.trim()) parts.push(shortDesc.trim().replace(/[.!?]$/, "") + ".");
+    if (material?.trim()) parts.push(`Made from ${material.trim()}.`);
+    parts.push("Delivery all over Pakistan.");
+    return parts.join(" ").slice(0, 160);
+  }
+
+  function autoFillSeo() {
+    const name = form.getValues("name");
+    const short = form.getValues("short_description");
+    const mat = form.getValues("material");
+    if (name) {
+      form.setValue("seo_title", buildSeoTitle(name, mat));
+      form.setValue("seo_description", buildSeoDescription(name, short, mat));
+    }
+  }
 
   useEffect(() => {
     if (!nameValue) return;
-    if (!form.getValues("seo_title")) form.setValue("seo_title", `${nameValue} | By Areeqaan`);
+    if (!form.getValues("seo_title")) form.setValue("seo_title", buildSeoTitle(nameValue, form.getValues("material")));
   }, [nameValue]);
 
   useEffect(() => {
-    if (!shortDescValue) return;
-    if (!form.getValues("seo_description")) form.setValue("seo_description", shortDescValue.slice(0, 160));
+    if (!shortDescValue && !nameValue) return;
+    if (!form.getValues("seo_description"))
+      form.setValue("seo_description", buildSeoDescription(form.getValues("name"), shortDescValue, form.getValues("material")));
   }, [shortDescValue]);
 
   function handleNameBlur() {
@@ -340,11 +369,27 @@ export function ProductForm({
 
           <Section title="SEO" icon={<Tag size={14} />} expanded={expandedSections.seo} onToggle={() => toggleSection("seo")} hint="Optional">
             <div className="space-y-3">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] text-gray-400">Auto-generated from product details</p>
+                <button type="button" onClick={autoFillSeo}
+                  className="text-[11px] text-violet-600 hover:text-violet-800 font-medium underline">
+                  Regenerate
+                </button>
+              </div>
               <Field label="SEO Title">
-                <Input {...form.register("seo_title")} placeholder="Page title for search engines" className="h-9" />
+                <Input {...form.register("seo_title")} placeholder="Product Name – Material | By Areeqaan" className="h-9" />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {(form.watch("seo_title") ?? "").length}/60 chars
+                  {(form.watch("seo_title") ?? "").length > 60 && <span className="text-amber-500 ml-1">— too long, trim to 60</span>}
+                </p>
               </Field>
               <Field label="SEO Description">
-                <Textarea {...form.register("seo_description")} placeholder="150-160 character description…" rows={2} className="resize-none text-sm" />
+                <Textarea {...form.register("seo_description")} placeholder="Shop [product] at By Areeqaan…" rows={3} className="resize-none text-sm" />
+                <p className={cn("text-[11px] mt-1", seoDescValue.length > 160 ? "text-red-500" : seoDescValue.length >= 140 ? "text-emerald-600" : "text-gray-400")}>
+                  {seoDescValue.length}/160 chars
+                  {seoDescValue.length > 160 && " — over limit"}
+                  {seoDescValue.length >= 140 && seoDescValue.length <= 160 && " — ideal"}
+                </p>
               </Field>
             </div>
           </Section>
