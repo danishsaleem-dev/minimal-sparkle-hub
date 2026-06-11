@@ -22,13 +22,14 @@ function EditProductPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-product", productSlug],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productSlug);
+      const query = supabase
         .from("products")
-        .select(`*, product_images(*), product_videos(*), product_variants(*)`)
-        .eq("slug", productSlug)
+        .select(`*, product_images(*), product_videos(*), product_variants(*)`);
+      const { data, error } = await (isUuid ? query.eq("id", productSlug) : query.eq("slug", productSlug))
         .maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error(`No product found with slug "${productSlug}"`);
+      if (!data) throw new Error("Product not found");
       return data;
     },
   });
@@ -144,6 +145,12 @@ function EditProductPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  // Redirect UUID URLs to slug URLs
+  if (data && data.slug !== productSlug) {
+    navigate({ to: "/admin/products/$productSlug", params: { productSlug: data.slug }, replace: true });
+    return null;
   }
 
   if (isLoading) {
