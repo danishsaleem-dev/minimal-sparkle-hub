@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Button } from "@/components/ui/button";
-import { ProductForm, type ProductFormValues } from "@/components/admin/ProductForm";
+import { ProductForm, type ProductFormValues, type Collection } from "@/components/admin/ProductForm";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -17,13 +17,25 @@ function NewProductPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
+  const { data: collections = [] } = useQuery<Collection[]>({
+    queryKey: ["admin-collections-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("collections")
+        .select("id, name, slug")
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   async function handleSubmit(
     values: ProductFormValues,
-    media: Array<{ url: string; alt?: string; is_primary: boolean; type: "image" | "video"; thumbnail_url?: string; title?: string }>
+    media: Array<{ url: string; alt?: string; is_primary: boolean; type: "image" | "video"; thumbnail_url?: string; title?: string }>,
+    collectionIds: string[]
   ) {
     setIsSubmitting(true);
     try {
-      // Insert product
       const { data: product, error: productError } = await supabase
         .from("products")
         .insert({
@@ -46,7 +58,6 @@ function NewProductPage() {
 
       if (productError) throw productError;
 
-      // Insert images
       const images = media.filter((m) => m.type === "image");
       if (images.length > 0) {
         await supabase.from("product_images").insert(
@@ -60,7 +71,6 @@ function NewProductPage() {
         );
       }
 
-      // Insert videos
       const videos = media.filter((m) => m.type === "video");
       if (videos.length > 0) {
         await supabase.from("product_videos").insert(
@@ -74,7 +84,6 @@ function NewProductPage() {
         );
       }
 
-      // Insert variants
       if (values.variants && values.variants.length > 0) {
         await supabase.from("product_variants").insert(
           values.variants.map((v, i) => ({
@@ -90,10 +99,16 @@ function NewProductPage() {
         );
       }
 
+      if (collectionIds.length > 0) {
+        await supabase.from("product_collections").insert(
+          collectionIds.map((collection_id) => ({ product_id: product.id, collection_id }))
+        );
+      }
+
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
       toast.success("Product created successfully!");
-      navigate({ to: "/admin/products/$productId", params: { productId: product.id } });
+      navigate({ to: "/admin/products/$productSlug", params: { productSlug: product.slug } });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Failed to create product: ${msg}`);
@@ -115,8 +130,9 @@ function NewProductPage() {
           </Link>
         }
       />
-      <div className="p-4 sm:p-6 max-w-3xl">
+      <div className="p-4 sm:p-6">
         <ProductForm
+          collections={collections}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
           submitLabel="Create Product"
