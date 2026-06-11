@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Loader2, AlertCircle } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Button } from "@/components/ui/button";
-import { ProductForm, type ProductFormValues, type Collection } from "@/components/admin/ProductForm";
+import { ProductForm, type ProductFormValues } from "@/components/admin/ProductForm";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { StatusBadge } from "@/routes/admin/index";
@@ -29,18 +29,6 @@ function EditProductPage() {
         .single();
       if (error) throw error;
       return data;
-    },
-  });
-
-  const { data: collections = [] } = useQuery<Collection[]>({
-    queryKey: ["admin-collections-list"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("collections")
-        .select("id, name, slug")
-        .order("name");
-      if (error) throw error;
-      return data ?? [];
     },
   });
 
@@ -237,7 +225,6 @@ function EditProductPage() {
         <ProductForm
           defaultValues={defaultValues}
           mediaItems={mediaItems}
-          collections={collections}
           selectedCollectionIds={selectedCollectionIds}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}

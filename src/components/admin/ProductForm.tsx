@@ -1,42 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Upload,
-  X,
-  Plus,
-  Trash2,
-  GripVertical,
-  Image as ImageIcon,
-  Video,
-  Tag,
-  Layers,
-  Info,
-  ChevronDown,
-  ChevronUp,
-  Star,
-  Loader2,
-  Globe,
-  FolderOpen,
-  Eye,
-  EyeOff,
-  Archive,
-  CheckSquare,
-  Square,
+  Upload, X, Plus, Trash2, GripVertical,
+  Image as ImageIcon, Video, Tag, Layers, Info,
+  ChevronDown, ChevronUp, Star, Loader2,
+  Globe, FolderOpen, Eye, EyeOff, Archive,
+  CheckSquare, Square, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -56,7 +34,7 @@ const productSchema = z.object({
   slug: z.string().min(1, "Slug is required"),
   description: z.string().optional(),
   short_description: z.string().optional(),
-  price: z.coerce.number().min(0, "Price must be positive"),
+  price: z.coerce.number().min(0),
   compare_price: z.coerce.number().optional(),
   status: z.enum(["draft", "published", "archived"]),
   featured: z.boolean().default(false),
@@ -90,50 +68,50 @@ export interface Collection {
 interface ProductFormProps {
   defaultValues?: Partial<ProductFormValues>;
   mediaItems?: MediaItem[];
-  collections?: Collection[];
   selectedCollectionIds?: string[];
   onSubmit: (values: ProductFormValues, media: MediaItem[], collectionIds: string[]) => Promise<void>;
   isSubmitting?: boolean;
   submitLabel?: string;
 }
 
+function generateSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").trim();
+}
+
 export function ProductForm({
   defaultValues,
   mediaItems: initialMedia = [],
-  collections = [],
   selectedCollectionIds: initialCollectionIds = [],
   onSubmit,
   isSubmitting,
   submitLabel = "Save Product",
 }: ProductFormProps) {
+  const qc = useQueryClient();
   const [media, setMedia] = useState<MediaItem[]>(initialMedia);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>(initialCollectionIds);
-  const [expandedSections, setExpandedSections] = useState({
-    basic: true,
-    media: true,
-    variants: false,
-    seo: false,
-  });
+  const [collectionSearch, setCollectionSearch] = useState("");
+  const [showNewCollection, setShowNewCollection] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({ basic: true, media: true, variants: false, seo: false });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      status: "draft",
-      featured: false,
-      price: 0,
-      variants: [],
-      ...defaultValues,
+  const { data: collections = [] } = useQuery<Collection[]>({
+    queryKey: ["admin-collections-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("collections").select("id, name, slug").order("name");
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
-  const { fields: variantFields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "variants",
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: { name: "", slug: "", status: "draft", featured: false, price: 0, variants: [], ...defaultValues },
   });
+
+  const { fields: variantFields, append, remove } = useFieldArray({ control: form.control, name: "variants" });
 
   const nameValue = form.watch("name");
   const shortDescValue = form.watch("short_description");
@@ -142,34 +120,16 @@ export function ProductForm({
 
   useEffect(() => {
     if (!nameValue) return;
-    const currentSeoTitle = form.getValues("seo_title");
-    if (!currentSeoTitle) {
-      form.setValue("seo_title", `${nameValue} | By Areeqaan`);
-    }
+    if (!form.getValues("seo_title")) form.setValue("seo_title", `${nameValue} | By Areeqaan`);
   }, [nameValue]);
 
   useEffect(() => {
     if (!shortDescValue) return;
-    const currentSeoDesc = form.getValues("seo_description");
-    if (!currentSeoDesc) {
-      form.setValue("seo_description", shortDescValue.slice(0, 160));
-    }
+    if (!form.getValues("seo_description")) form.setValue("seo_description", shortDescValue.slice(0, 160));
   }, [shortDescValue]);
 
-  function generateSlug(name: string) {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .trim();
-  }
-
   function handleNameBlur() {
-    const current = form.getValues("slug");
-    if (!current) {
-      form.setValue("slug", generateSlug(form.getValues("name")));
-    }
+    if (!form.getValues("slug")) form.setValue("slug", generateSlug(form.getValues("name")));
   }
 
   function toggleSection(key: keyof typeof expandedSections) {
@@ -177,58 +137,52 @@ export function ProductForm({
   }
 
   function toggleCollection(id: string) {
-    setSelectedCollectionIds((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    );
+    setSelectedCollectionIds((prev) => prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]);
+  }
+
+  async function handleCreateCollection() {
+    const name = newCollectionName.trim();
+    if (!name) return;
+    setCreatingCollection(true);
+    try {
+      const slug = generateSlug(name);
+      const { data, error } = await supabase.from("collections").insert({ name, slug }).select().single();
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["admin-collections-list"] });
+      setSelectedCollectionIds((prev) => [...prev, data.id]);
+      setNewCollectionName("");
+      setShowNewCollection(false);
+      toast.success(`Collection "${name}" created`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to create collection");
+    } finally {
+      setCreatingCollection(false);
+    }
   }
 
   async function handleFileUpload(files: FileList | null, type: "image" | "video") {
     if (!files || files.length === 0) return;
-
-    const uploadPromises = Array.from(files).map(async (file) => {
-      const tempItem: MediaItem = {
-        url: URL.createObjectURL(file),
-        is_primary: media.length === 0 && type === "image",
-        type,
-        uploading: true,
-      };
-
+    await Promise.all(Array.from(files).map(async (file) => {
+      const tempItem: MediaItem = { url: URL.createObjectURL(file), is_primary: media.length === 0 && type === "image", type, uploading: true };
       setMedia((prev) => [...prev, tempItem]);
-
       try {
         const ext = file.name.split(".").pop();
         const path = `${type}s/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-        const { data, error } = await supabase.storage
-          .from("products")
-          .upload(path, file, { cacheControl: "3600", upsert: false });
-
+        const { data, error } = await supabase.storage.from("products").upload(path, file, { cacheControl: "3600", upsert: false });
         if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("products")
-          .getPublicUrl(data.path);
-
-        setMedia((prev) =>
-          prev.map((m) =>
-            m.url === tempItem.url ? { ...m, url: publicUrl, uploading: false } : m
-          )
-        );
+        const { data: { publicUrl } } = supabase.storage.from("products").getPublicUrl(data.path);
+        setMedia((prev) => prev.map((m) => m.url === tempItem.url ? { ...m, url: publicUrl, uploading: false } : m));
       } catch {
-        toast.error(`Failed to upload ${file.name}. Check your Supabase storage bucket.`);
+        toast.error(`Failed to upload ${file.name}`);
         setMedia((prev) => prev.filter((m) => m.url !== tempItem.url));
       }
-    });
-
-    await Promise.all(uploadPromises);
+    }));
   }
 
   function removeMedia(index: number) {
     setMedia((prev) => {
       const next = prev.filter((_, i) => i !== index);
-      if (prev[index].is_primary && next.length > 0) {
-        next[0].is_primary = true;
-      }
+      if (prev[index].is_primary && next.length > 0) next[0].is_primary = true;
       return next;
     });
   }
@@ -237,409 +191,313 @@ export function ProductForm({
     setMedia((prev) => prev.map((m, i) => ({ ...m, is_primary: i === index })));
   }
 
-  async function handleSubmit(values: ProductFormValues) {
-    await onSubmit(values, media, selectedCollectionIds);
-  }
+  const filteredCollections = collections.filter((c) =>
+    c.name.toLowerCase().includes(collectionSearch.toLowerCase())
+  );
 
   const statusConfig = {
-    published: { label: "Published", icon: <Eye size={13} />, color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
-    draft: { label: "Draft", icon: <EyeOff size={13} />, color: "text-gray-500 bg-gray-50 border-gray-200" },
-    archived: { label: "Archived", icon: <Archive size={13} />, color: "text-amber-600 bg-amber-50 border-amber-200" },
+    published: { label: "Published", icon: <Eye size={12} />, active: "text-emerald-700 bg-emerald-50 border-emerald-200 font-semibold", inactive: "text-gray-400 hover:bg-gray-50 border-transparent" },
+    draft: { label: "Draft", icon: <EyeOff size={12} />, active: "text-gray-700 bg-gray-100 border-gray-200 font-semibold", inactive: "text-gray-400 hover:bg-gray-50 border-transparent" },
+    archived: { label: "Archived", icon: <Archive size={12} />, active: "text-amber-700 bg-amber-50 border-amber-200 font-semibold", inactive: "text-gray-400 hover:bg-gray-50 border-transparent" },
   };
 
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)}>
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-5 items-start">
+    <form onSubmit={form.handleSubmit((v) => onSubmit(v, media, selectedCollectionIds))}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4 items-start">
 
-        {/* ── LEFT COLUMN ── */}
-        <div className="space-y-4">
+        {/* ── LEFT ── */}
+        <div className="space-y-3">
 
-          {/* Basic Info */}
-          <Section
-            title="Basic Information"
-            icon={<Info size={15} />}
-            expanded={expandedSections.basic}
-            onToggle={() => toggleSection("basic")}
-          >
-            <div className="space-y-4">
+          <Section title="Basic Information" icon={<Info size={14} />} expanded={expandedSections.basic} onToggle={() => toggleSection("basic")}>
+            <div className="space-y-3">
               <Field label="Product Name" error={form.formState.errors.name?.message}>
-                <Input
-                  {...form.register("name", { onBlur: handleNameBlur })}
-                  placeholder="e.g. Petal Hoop Earrings"
-                  className="h-10"
-                />
+                <Input {...form.register("name", { onBlur: handleNameBlur })} placeholder="e.g. Petal Hoop Earrings" className="h-9" />
               </Field>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <Field label="Material">
-                  <Input
-                    {...form.register("material")}
-                    placeholder="e.g. Gold-plated brass"
-                    className="h-10"
-                  />
+                  <Input {...form.register("material")} placeholder="e.g. Gold-plated brass" className="h-9" />
                 </Field>
                 <Field label="SKU">
-                  <Input
-                    {...form.register("sku")}
-                    placeholder="ARQ-001"
-                    className="h-10"
-                  />
+                  <Input {...form.register("sku")} placeholder="ARQ-001" className="h-9" />
                 </Field>
               </div>
-
               <Field label="Short Description">
-                <Textarea
-                  {...form.register("short_description")}
-                  placeholder="Brief description shown in product cards…"
-                  rows={2}
-                  className="resize-none"
-                />
+                <Textarea {...form.register("short_description")} placeholder="Brief description shown in product cards…" rows={2} className="resize-none text-sm" />
               </Field>
-
               <Field label="Full Description">
-                <Textarea
-                  {...form.register("description")}
-                  placeholder="Detailed product description, care instructions, story…"
-                  rows={5}
-                  className="resize-none"
-                />
+                <Textarea {...form.register("description")} placeholder="Detailed description, care instructions, story…" rows={4} className="resize-none text-sm" />
               </Field>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <Field label="Price (Rs)" error={form.formState.errors.price?.message}>
-                  <Input type="number" step="0.01" {...form.register("price")} className="h-10" />
+                  <Input type="number" step="0.01" {...form.register("price")} className="h-9" />
                 </Field>
                 <Field label="Compare Price">
-                  <Input type="number" step="0.01" {...form.register("compare_price")} placeholder="0" className="h-10" />
+                  <Input type="number" step="0.01" {...form.register("compare_price")} placeholder="0" className="h-9" />
                 </Field>
                 <Field label="Weight (g)">
-                  <Input type="number" step="0.01" {...form.register("weight_grams")} placeholder="0" className="h-10" />
+                  <Input type="number" step="0.01" {...form.register("weight_grams")} placeholder="0" className="h-9" />
                 </Field>
               </div>
             </div>
           </Section>
 
-          {/* Media */}
-          <Section
-            title="Images & Videos"
-            icon={<ImageIcon size={15} />}
-            badge={media.length > 0 ? String(media.length) : undefined}
-            expanded={expandedSections.media}
-            onToggle={() => toggleSection("media")}
-          >
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
-                  onChange={(e) => handleFileUpload(e.target.files, "image")} />
-                <input ref={videoInputRef} type="file" accept="video/*" multiple className="hidden"
-                  onChange={(e) => handleFileUpload(e.target.files, "video")} />
-                <Button type="button" variant="outline" size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="gap-1.5 border-dashed border-violet-300 text-violet-600 hover:bg-violet-50 hover:border-violet-400">
-                  <Upload size={14} /> Upload Images
+          <Section title="Images & Videos" icon={<ImageIcon size={14} />} badge={media.length > 0 ? String(media.length) : undefined} expanded={expandedSections.media} onToggle={() => toggleSection("media")}>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFileUpload(e.target.files, "image")} />
+                <input ref={videoInputRef} type="file" accept="video/*" multiple className="hidden" onChange={(e) => handleFileUpload(e.target.files, "video")} />
+                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}
+                  className="gap-1.5 border-dashed border-violet-300 text-violet-600 hover:bg-violet-50 text-xs h-8">
+                  <Upload size={13} /> Images
                 </Button>
-                <Button type="button" variant="outline" size="sm"
-                  onClick={() => videoInputRef.current?.click()}
-                  className="gap-1.5 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400">
-                  <Video size={14} /> Upload Videos
+                <Button type="button" variant="outline" size="sm" onClick={() => videoInputRef.current?.click()}
+                  className="gap-1.5 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 text-xs h-8">
+                  <Video size={13} /> Videos
                 </Button>
               </div>
-
               {media.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
                   {media.map((item, i) => (
                     <div key={i} className="relative group">
-                      <div className={cn(
-                        "aspect-square rounded-xl overflow-hidden bg-gray-100 border-2 transition-all",
-                        item.is_primary && item.type === "image"
-                          ? "border-violet-500 ring-2 ring-violet-200"
-                          : "border-transparent"
-                      )}>
+                      <div className={cn("aspect-square rounded-lg overflow-hidden bg-gray-100 border-2 transition-all",
+                        item.is_primary && item.type === "image" ? "border-violet-500 ring-1 ring-violet-200" : "border-transparent")}>
                         {item.uploading ? (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Loader2 size={20} className="animate-spin text-gray-400" />
-                          </div>
+                          <div className="w-full h-full flex items-center justify-center"><Loader2 size={16} className="animate-spin text-gray-400" /></div>
                         ) : item.type === "image" ? (
                           <img src={item.url} alt={item.alt ?? ""} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gray-900">
-                            <Video size={24} className="text-white" />
-                          </div>
+                          <div className="w-full h-full flex items-center justify-center bg-gray-900"><Video size={18} className="text-white" /></div>
                         )}
                       </div>
                       {!item.uploading && (
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-2">
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-1.5">
                           {item.type === "image" && !item.is_primary && (
-                            <button type="button" onClick={() => setPrimary(i)} title="Set as primary"
-                              className="p-1.5 bg-amber-400 text-white rounded-lg hover:bg-amber-500">
-                              <Star size={12} />
-                            </button>
+                            <button type="button" onClick={() => setPrimary(i)} className="p-1 bg-amber-400 text-white rounded hover:bg-amber-500"><Star size={10} /></button>
                           )}
-                          <button type="button" onClick={() => removeMedia(i)}
-                            className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600">
-                            <X size={12} />
-                          </button>
+                          <button type="button" onClick={() => removeMedia(i)} className="p-1 bg-red-500 text-white rounded hover:bg-red-600"><X size={10} /></button>
                         </div>
                       )}
                       {item.is_primary && item.type === "image" && (
-                        <div className="absolute bottom-1.5 left-1.5 bg-violet-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">
-                          Primary
-                        </div>
+                        <div className="absolute bottom-1 left-1 bg-violet-600 text-white text-[8px] font-bold px-1 py-0.5 rounded uppercase">Primary</div>
                       )}
                     </div>
                   ))}
                   <button type="button" onClick={() => fileInputRef.current?.click()}
-                    className="aspect-square rounded-xl border-2 border-dashed border-gray-200 hover:border-violet-300 hover:bg-violet-50 transition-colors flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-violet-500">
-                    <Plus size={20} />
-                    <span className="text-xs">Add more</span>
+                    className="aspect-square rounded-lg border-2 border-dashed border-gray-200 hover:border-violet-300 hover:bg-violet-50 transition-colors flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-violet-500">
+                    <Plus size={16} /><span className="text-[10px]">Add</span>
                   </button>
                 </div>
               ) : (
                 <button type="button" onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-gray-200 hover:border-violet-300 rounded-xl p-10 flex flex-col items-center gap-3 text-gray-400 hover:text-violet-500 transition-colors">
-                  <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center">
-                    <Upload size={20} />
-                  </div>
-                  <div className="text-center">
-                    <p className="font-medium text-sm">Drop images here</p>
-                    <p className="text-xs mt-0.5">or click to browse</p>
-                  </div>
+                  className="w-full border-2 border-dashed border-gray-200 hover:border-violet-300 rounded-xl p-8 flex flex-col items-center gap-2 text-gray-400 hover:text-violet-500 transition-colors">
+                  <Upload size={18} />
+                  <span className="text-sm font-medium">Drop images or click to browse</span>
                 </button>
               )}
             </div>
           </Section>
 
-          {/* Variants */}
-          <Section
-            title="Variants"
-            icon={<Layers size={15} />}
-            badge={variantFields.length > 0 ? String(variantFields.length) : undefined}
-            expanded={expandedSections.variants}
-            onToggle={() => toggleSection("variants")}
-            hint="Size, color or other options"
-          >
-            <div className="space-y-3">
+          <Section title="Variants" icon={<Layers size={14} />} badge={variantFields.length > 0 ? String(variantFields.length) : undefined} expanded={expandedSections.variants} onToggle={() => toggleSection("variants")} hint="Size, color…">
+            <div className="space-y-2">
               {variantFields.map((field, index) => (
-                <div key={field.id} className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <div key={field.id} className="bg-gray-50 rounded-xl p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <GripVertical size={14} className="text-gray-300 cursor-grab" />
+                    <GripVertical size={12} className="text-gray-300 cursor-grab" />
                     <span className="text-xs font-medium text-gray-500">Variant {index + 1}</span>
-                    <button type="button" onClick={() => remove(index)}
-                      className="ml-auto p-1 text-gray-400 hover:text-red-500 transition-colors">
-                      <Trash2 size={14} />
-                    </button>
+                    <button type="button" onClick={() => remove(index)} className="ml-auto p-1 text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <div className="col-span-2 sm:col-span-1">
-                      <Label className="text-xs text-gray-600 mb-1 block">Title *</Label>
-                      <Input {...form.register(`variants.${index}.title`)} placeholder="e.g. Gold / Size 7" className="h-8 text-sm" />
+                      <Label className="text-[11px] text-gray-500 mb-1 block">Title *</Label>
+                      <Input {...form.register(`variants.${index}.title`)} placeholder="Gold / Size 7" className="h-7 text-xs" />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-600 mb-1 block">SKU</Label>
-                      <Input {...form.register(`variants.${index}.sku`)} placeholder="ARQ-001-G7" className="h-8 text-sm" />
+                      <Label className="text-[11px] text-gray-500 mb-1 block">SKU</Label>
+                      <Input {...form.register(`variants.${index}.sku`)} placeholder="ARQ-001-G7" className="h-7 text-xs" />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-600 mb-1 block">Price Override</Label>
-                      <Input type="number" {...form.register(`variants.${index}.price`)} placeholder="Same as base" className="h-8 text-sm" />
+                      <Label className="text-[11px] text-gray-500 mb-1 block">Price Override</Label>
+                      <Input type="number" {...form.register(`variants.${index}.price`)} placeholder="Base" className="h-7 text-xs" />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-600 mb-1 block">Inventory</Label>
-                      <Input type="number" {...form.register(`variants.${index}.inventory_quantity`)} defaultValue={0} className="h-8 text-sm" />
+                      <Label className="text-[11px] text-gray-500 mb-1 block">Inventory</Label>
+                      <Input type="number" {...form.register(`variants.${index}.inventory_quantity`)} defaultValue={0} className="h-7 text-xs" />
                     </div>
-                    <div className="flex items-center gap-2 pt-5">
-                      <Switch id={`available-${index}`}
-                        checked={form.watch(`variants.${index}.available`)}
+                    <div className="flex items-center gap-2 pt-4">
+                      <Switch id={`available-${index}`} checked={form.watch(`variants.${index}.available`)}
                         onCheckedChange={(v) => form.setValue(`variants.${index}.available`, v)} />
                       <Label htmlFor={`available-${index}`} className="text-xs cursor-pointer">Available</Label>
                     </div>
                   </div>
                 </div>
               ))}
-              <Button type="button" variant="outline" size="sm"
-                onClick={() => append({ title: "", available: true, inventory_quantity: 0 })}
-                className="gap-1.5 border-dashed text-gray-600 hover:text-violet-600 hover:border-violet-300">
-                <Plus size={14} /> Add Variant
+              <Button type="button" variant="outline" size="sm" onClick={() => append({ title: "", available: true, inventory_quantity: 0 })}
+                className="gap-1.5 border-dashed text-gray-600 hover:text-violet-600 hover:border-violet-300 h-8 text-xs">
+                <Plus size={12} /> Add Variant
               </Button>
             </div>
           </Section>
 
-          {/* SEO */}
-          <Section
-            title="SEO"
-            icon={<Tag size={15} />}
-            expanded={expandedSections.seo}
-            onToggle={() => toggleSection("seo")}
-            hint="Optional — improves search ranking"
-          >
-            <div className="space-y-4">
+          <Section title="SEO" icon={<Tag size={14} />} expanded={expandedSections.seo} onToggle={() => toggleSection("seo")} hint="Optional">
+            <div className="space-y-3">
               <Field label="SEO Title">
-                <Input {...form.register("seo_title")} placeholder="Page title for search engines" className="h-10" />
+                <Input {...form.register("seo_title")} placeholder="Page title for search engines" className="h-9" />
               </Field>
               <Field label="SEO Description">
-                <Textarea {...form.register("seo_description")}
-                  placeholder="150-160 character description for search results…"
-                  rows={3} className="resize-none" />
+                <Textarea {...form.register("seo_description")} placeholder="150-160 character description…" rows={2} className="resize-none text-sm" />
               </Field>
             </div>
           </Section>
         </div>
 
         {/* ── RIGHT SIDEBAR ── */}
-        <div className="space-y-4 lg:sticky lg:top-20">
+        <div className="space-y-3 lg:sticky lg:top-[68px]">
 
           {/* Publish */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-50">
-              <Eye size={14} className="text-violet-600" />
-              <span className="font-semibold text-sm text-gray-900">Publish</span>
-            </div>
-            <div className="p-4 space-y-4">
-              {/* Status selector */}
+          <SideCard title="Publish" icon={<Eye size={13} />}>
+            <div className="space-y-3">
               <div>
-                <Label className="text-xs font-medium text-gray-600 mb-2 block">Status</Label>
-                <div className="flex flex-col gap-1.5">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1.5">Status</p>
+                <div className="flex flex-col gap-1">
                   {(["published", "draft", "archived"] as const).map((s) => {
                     const cfg = statusConfig[s];
                     const active = statusValue === s;
                     return (
-                      <button key={s} type="button"
-                        onClick={() => form.setValue("status", s)}
-                        className={cn(
-                          "flex items-center gap-2.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all text-left",
-                          active ? cfg.color + " border" : "border-gray-100 text-gray-500 hover:bg-gray-50"
-                        )}>
-                        <span className={active ? "" : "text-gray-400"}>{cfg.icon}</span>
-                        {cfg.label}
-                        {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-current" />}
+                      <button key={s} type="button" onClick={() => form.setValue("status", s)}
+                        className={cn("flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-sm transition-all", active ? cfg.active : cfg.inactive)}>
+                        {cfg.icon}{cfg.label}
+                        {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-current opacity-70" />}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Featured toggle */}
-              <div className="flex items-center justify-between py-1">
+              <div className="flex items-center justify-between py-0.5 border-t border-gray-50 pt-2">
                 <div>
                   <p className="text-sm font-medium text-gray-800">Featured</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Show on homepage</p>
+                  <p className="text-[11px] text-gray-400">Show on homepage</p>
                 </div>
-                <Switch
-                  checked={featuredValue}
-                  onCheckedChange={(v) => form.setValue("featured", v)}
+                <Switch checked={featuredValue} onCheckedChange={(v) => form.setValue("featured", v)} />
+              </div>
+
+              <Button type="submit" disabled={isSubmitting} className="w-full bg-violet-600 hover:bg-violet-700 text-white h-9 text-sm">
+                {isSubmitting ? <><Loader2 size={13} className="mr-1.5 animate-spin" />Saving…</> : submitLabel}
+              </Button>
+            </div>
+          </SideCard>
+
+          {/* URL Slug */}
+          <SideCard title="URL Slug" icon={<Globe size={13} />}>
+            <p className="text-[11px] text-gray-400 mb-1">/products/</p>
+            <Input {...form.register("slug")} placeholder="product-slug" className="h-9 font-mono text-sm" />
+            {form.formState.errors.slug && <p className="text-[11px] text-red-500 mt-1">{form.formState.errors.slug.message}</p>}
+            <button type="button" onClick={() => form.setValue("slug", generateSlug(form.getValues("name")))}
+              className="text-[11px] text-violet-500 hover:text-violet-700 mt-1.5 underline block">
+              Re-generate from name
+            </button>
+          </SideCard>
+
+          {/* Collections */}
+          <SideCard title="Collections" icon={<FolderOpen size={13} />} badge={selectedCollectionIds.length > 0 ? String(selectedCollectionIds.length) : undefined}>
+            <div className="space-y-2">
+              {/* Search */}
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Input
+                  value={collectionSearch}
+                  onChange={(e) => setCollectionSearch(e.target.value)}
+                  placeholder="Search collections…"
+                  className="h-8 pl-7 text-xs"
                 />
               </div>
 
-              {/* Save button */}
-              <Button type="submit" disabled={isSubmitting}
-                className="w-full bg-violet-600 hover:bg-violet-700 text-white">
-                {isSubmitting ? (
-                  <><Loader2 size={14} className="mr-2 animate-spin" /> Saving…</>
-                ) : submitLabel}
-              </Button>
-            </div>
-          </div>
-
-          {/* URL Slug */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-50">
-              <Globe size={14} className="text-violet-600" />
-              <span className="font-semibold text-sm text-gray-900">URL Slug</span>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center gap-1 text-[11px] text-gray-400 mb-2">
-                <span>/products/</span>
+              {/* List */}
+              <div className="space-y-0.5 max-h-44 overflow-y-auto">
+                {filteredCollections.length === 0 && !collectionSearch ? (
+                  <p className="text-xs text-gray-400 text-center py-2">No collections yet</p>
+                ) : filteredCollections.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-2">No match for "{collectionSearch}"</p>
+                ) : filteredCollections.map((col) => {
+                  const selected = selectedCollectionIds.includes(col.id);
+                  return (
+                    <button key={col.id} type="button" onClick={() => toggleCollection(col.id)}
+                      className={cn("w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all text-left",
+                        selected ? "bg-violet-50 text-violet-700 font-medium" : "text-gray-600 hover:bg-gray-50")}>
+                      {selected ? <CheckSquare size={12} className="text-violet-600 shrink-0" /> : <Square size={12} className="text-gray-300 shrink-0" />}
+                      <span className="truncate">{col.name}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <Input
-                {...form.register("slug")}
-                placeholder="petal-hoop-earrings"
-                className="h-9 font-mono text-sm"
-              />
-              {form.formState.errors.slug && (
-                <p className="text-xs text-red-500 mt-1">{form.formState.errors.slug.message}</p>
-              )}
-              <button type="button"
-                onClick={() => form.setValue("slug", generateSlug(form.getValues("name")))}
-                className="text-[11px] text-violet-500 hover:text-violet-700 mt-2 underline">
-                Re-generate from name
-              </button>
-            </div>
-          </div>
 
-          {/* Collections */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-50">
-              <FolderOpen size={14} className="text-violet-600" />
-              <span className="font-semibold text-sm text-gray-900">Collections</span>
-              {selectedCollectionIds.length > 0 && (
-                <span className="ml-auto text-[10px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">
-                  {selectedCollectionIds.length}
-                </span>
-              )}
+              {/* Create new */}
+              <div className="border-t border-gray-50 pt-2">
+                {!showNewCollection ? (
+                  <button type="button" onClick={() => setShowNewCollection(true)}
+                    className="w-full flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium py-1">
+                    <Plus size={12} /> New collection
+                  </button>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Input
+                      value={newCollectionName}
+                      onChange={(e) => setNewCollectionName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleCreateCollection())}
+                      placeholder="Collection name"
+                      className="h-8 text-xs"
+                      autoFocus
+                    />
+                    <div className="flex gap-1.5">
+                      <Button type="button" size="sm" disabled={creatingCollection || !newCollectionName.trim()}
+                        onClick={handleCreateCollection}
+                        className="flex-1 h-7 text-xs bg-violet-600 hover:bg-violet-700 text-white">
+                        {creatingCollection ? <Loader2 size={11} className="animate-spin" /> : "Create"}
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => { setShowNewCollection(false); setNewCollectionName(""); }}
+                        className="h-7 text-xs text-gray-500">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="p-4">
-              {collections.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-3">
-                  No collections yet.{" "}
-                  <a href="/admin/collections" className="text-violet-500 hover:underline">Create one</a>
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  {collections.map((col) => {
-                    const selected = selectedCollectionIds.includes(col.id);
-                    return (
-                      <button key={col.id} type="button"
-                        onClick={() => toggleCollection(col.id)}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-sm transition-all text-left",
-                          selected
-                            ? "border-violet-200 bg-violet-50 text-violet-700 font-medium"
-                            : "border-transparent text-gray-600 hover:bg-gray-50"
-                        )}>
-                        {selected
-                          ? <CheckSquare size={14} className="text-violet-600 shrink-0" />
-                          : <Square size={14} className="text-gray-300 shrink-0" />}
-                        {col.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+          </SideCard>
         </div>
       </div>
     </form>
   );
 }
 
-function Section({
-  title, icon, badge, hint, expanded, onToggle, children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  badge?: string;
-  hint?: string;
-  expanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
+function SideCard({ title, icon, badge, children }: { title: string; icon: React.ReactNode; badge?: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-50">
+        <span className="text-violet-600">{icon}</span>
+        <span className="font-semibold text-sm text-gray-900">{title}</span>
+        {badge && <span className="ml-auto text-[10px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">{badge}</span>}
+      </div>
+      <div className="p-3">{children}</div>
+    </div>
+  );
+}
+
+function Section({ title, icon, badge, hint, expanded, onToggle, children }: {
+  title: string; icon: React.ReactNode; badge?: string; hint?: string;
+  expanded: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <button type="button" onClick={onToggle}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors">
+        className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-gray-50 transition-colors">
         <span className="text-violet-600">{icon}</span>
         <span className="font-semibold text-sm text-gray-900">{title}</span>
-        {badge && (
-          <span className="ml-1 text-[10px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">
-            {badge}
-          </span>
-        )}
+        {badge && <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">{badge}</span>}
         {hint && <span className="text-xs text-gray-400 hidden sm:inline">{hint}</span>}
-        <span className="ml-auto text-gray-400">
-          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </span>
+        <span className="ml-auto text-gray-400">{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
       </button>
-      {expanded && <div className="px-5 pb-5">{children}</div>}
+      {expanded && <div className="px-4 pb-4">{children}</div>}
     </div>
   );
 }
@@ -647,9 +505,9 @@ function Section({
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <Label className="text-sm font-medium text-gray-700 mb-1.5 block">{label}</Label>
+      <Label className="text-xs font-medium text-gray-600 mb-1.5 block">{label}</Label>
       {children}
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
