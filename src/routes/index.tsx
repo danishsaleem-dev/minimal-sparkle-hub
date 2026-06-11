@@ -214,9 +214,17 @@ function Index() {
       )}
 
       {/* Nav */}
-      <nav className="sticky top-0 z-50 w-full bg-background/85 backdrop-blur-md border-b border-foreground/5 px-6 py-3 flex justify-between items-center">
-        <a href="#top" className="flex items-center gap-3">
-          <img src={logo} alt="By Areeqaan logo" width={220} height={60} className="h-11 w-auto" decoding="async" />
+      <nav className="sticky top-0 z-50 w-full bg-background/85 backdrop-blur-md border-b border-foreground/5 px-6 flex justify-between items-center" style={{ height: "64px" }}>
+        <a href="#top" className="flex items-center">
+          <img
+            src={logo}
+            alt="By Areeqaan logo"
+            width={150}
+            height={40}
+            style={{ height: "40px", width: "auto" }}
+            className="block"
+            decoding="async"
+          />
         </a>
         <div className="hidden md:flex gap-8 text-[11px] font-medium uppercase tracking-widest">
           <a href="#shop" className="hover:text-[var(--brand)] transition-colors">Shop</a>
