@@ -47,7 +47,7 @@ function AdminDashboard() {
     queryFn: async () => {
       const { data } = await supabase
         .from("products")
-        .select("id, name, price, status, created_at")
+        .select("id, name, slug, price, status, created_at")
         .order("created_at", { ascending: false })
         .limit(5);
       return data ?? [];

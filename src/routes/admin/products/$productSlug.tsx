@@ -26,8 +26,9 @@ function EditProductPage() {
         .from("products")
         .select(`*, product_images(*), product_videos(*), product_variants(*)`)
         .eq("slug", productSlug)
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error(`No product found with slug "${productSlug}"`);
       return data;
     },
   });
