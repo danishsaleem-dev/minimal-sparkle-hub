@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import hero1 from "@/assets/hero-1.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
@@ -8,6 +9,7 @@ import product3 from "@/assets/product-3.jpg";
 import product4 from "@/assets/product-4.jpg";
 import storyImg from "@/assets/story.jpg";
 import logo from "@/assets/logo.png";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,38 +34,151 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const products = [
-  { name: "Petal Hoops", material: "Gold-plated brass", price: "Rs 1,290", img: product1 },
-  { name: "Linea Stack", material: "Minimal ring set", price: "Rs 1,650", img: product2 },
-  { name: "Aria Pendant", material: "Hand-finished chain", price: "Rs 1,890", img: product3 },
-  { name: "Noor Cuff", material: "Statement bracelet", price: "Rs 2,150", img: product4 },
+const FALLBACK_PRODUCTS = [
+  { id: "f1", name: "Petal Hoops", material: "Gold-plated brass", price: 1290, img: product1 },
+  { id: "f2", name: "Linea Stack", material: "Minimal ring set", price: 1650, img: product2 },
+  { id: "f3", name: "Aria Pendant", material: "Hand-finished chain", price: 1890, img: product3 },
+  { id: "f4", name: "Noor Cuff", material: "Statement bracelet", price: 2150, img: product4 },
 ];
 
-const features = [
+const FALLBACK_FEATURES = [
   { label: "Shipping", text: "Delivery all over Pakistan" },
   { label: "Order", text: "Easy DM ordering" },
   { label: "Style", text: "Trendy minimal luxe" },
   { label: "Care", text: "Hand-finished detail" },
 ];
 
-const WHATSAPP = "https://wa.me/923364246604";
-const INSTAGRAM = "https://www.instagram.com/byareeqaan/";
-const TIKTOK = "https://www.tiktok.com/@by_areeqan";
-const FACEBOOK = "https://www.facebook.com/ByAreeqan/";
-
 function Index() {
+  // Load products from Supabase
+  const { data: dbProducts } = useQuery({
+    queryKey: ["storefront-products"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id, name, material, price, compare_price, product_images(url, is_primary)")
+        .eq("status", "published")
+        .order("featured", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(8);
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+
+  // Load homepage content from Supabase
+  const { data: homepageData } = useQuery({
+    queryKey: ["storefront-homepage"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("homepage_sections")
+        .select("section, key, value")
+        .order("section")
+        .order("position");
+      if (!data) return null;
+      const grouped: Record<string, Record<string, unknown>> = {};
+      for (const row of data) {
+        if (!grouped[row.section]) grouped[row.section] = {};
+        grouped[row.section][row.key] = row.value;
+      }
+      return grouped;
+    },
+    staleTime: 60_000,
+  });
+
+  // Load site settings
+  const { data: siteSettings } = useQuery({
+    queryKey: ["storefront-settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("site_settings").select("key, value");
+      if (!data) return null;
+      const map: Record<string, string> = {};
+      for (const row of data) {
+        const v = row.value;
+        map[row.key] = typeof v === "string" ? v.replace(/^"|"$/g, "") : v === null ? "" : String(v);
+      }
+      return map;
+    },
+    staleTime: 60_000,
+  });
+
+  // Derive values with fallbacks
+  const hp = homepageData ?? {};
+  const st = siteSettings ?? {};
+
+  const announcementText =
+    (hp.announcement?.text as string)?.replace(/^"|"$/g, "") ??
+    "New drops coming soon · Order via DM · Delivery all over Pakistan 🇵🇰";
+  const announcementEnabled = hp.announcement?.enabled !== false;
+
+  const heroTitle = (hp.hero?.title as string)?.replace(/^"|"$/g, "") ?? "Tiny details.";
+  const heroSubtitle = (hp.hero?.subtitle as string)?.replace(/^"|"$/g, "") ?? "Big statements.";
+  const heroDesc =
+    (hp.hero?.description as string)?.replace(/^"|"$/g, "") ??
+    "Trendy · Minimal · Affordable Luxe";
+  const heroCtaText = (hp.hero?.cta_text as string)?.replace(/^"|"$/g, "") ?? "Shop the Edit";
+
+  const storyTitle = (hp.story?.title as string)?.replace(/^"|"$/g, "") ?? "Our Story";
+  const storyContent =
+    (hp.story?.content as string)?.replace(/^"|"$/g, "") ??
+    '"Accessories are the quiet language of style — small, deliberate pieces that carry their own confidence."';
+
+  const contactTitle = (hp.contact?.title as string)?.replace(/^"|"$/g, "") ?? "Let's Connect";
+  const contactContent =
+    (hp.contact?.content as string)?.replace(/^"|"$/g, "") ??
+    "New drops coming soon. Slide into our DMs to place an order or to be the first to know when a piece you love is back in stock.";
+
+  const featuresItems: Array<{ label: string; text: string }> = Array.isArray(hp.features?.items)
+    ? (hp.features.items as Array<{ label: string; text: string }>)
+    : FALLBACK_FEATURES;
+
+  const WHATSAPP = st.whatsapp_number
+    ? `https://wa.me/${st.whatsapp_number}`
+    : "https://wa.me/923364246604";
+  const INSTAGRAM = st.instagram_url || "https://www.instagram.com/byareeqaan/";
+  const TIKTOK = st.tiktok_url || "https://www.tiktok.com/@by_areeqan";
+  const FACEBOOK = st.facebook_url || "https://www.facebook.com/ByAreeqan/";
+
+  // Products to show
+  const showProducts =
+    dbProducts && dbProducts.length > 0
+      ? dbProducts.map((p) => {
+          const images = p.product_images as Array<{ url: string; is_primary: boolean }> | undefined;
+          const img =
+            images?.find((i) => i.is_primary)?.url ??
+            images?.[0]?.url ??
+            null;
+          return {
+            id: p.id,
+            name: p.name,
+            material: p.material ?? "",
+            price: p.price,
+            compare_price: p.compare_price,
+            img,
+          };
+        })
+      : FALLBACK_PRODUCTS.map((p) => ({
+          id: p.id,
+          name: p.name,
+          material: p.material,
+          price: p.price,
+          compare_price: null as number | null,
+          img: p.img as string | null,
+        }));
+
   return (
     <div
       className="min-h-screen bg-background text-foreground antialiased"
       style={{ fontFamily: "var(--font-body)" }}
     >
       {/* Announcement */}
-      <div
-        className="w-full text-center py-2 text-[10px] uppercase tracking-[0.25em] text-background"
-        style={{ background: "var(--brand)", fontFamily: "var(--font-mono)" }}
-      >
-        New drops coming soon · Order via DM · Delivery all over Pakistan 🇵🇰
-      </div>
+      {announcementEnabled && (
+        <div
+          className="w-full text-center py-2 text-[10px] uppercase tracking-[0.25em] text-background"
+          style={{ background: "var(--brand)", fontFamily: "var(--font-mono)" }}
+        >
+          {announcementText}
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="sticky top-0 z-50 w-full bg-background/85 backdrop-blur-md border-b border-foreground/5 px-6 py-3 flex justify-between items-center">
@@ -101,10 +216,11 @@ function Index() {
             className="text-4xl md:text-6xl italic text-white text-balance leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Tiny details. Big statements.
+            {heroTitle} <br className="hidden md:block" />
+            <span className="opacity-90">{heroSubtitle}</span>
           </h1>
           <p className="mt-5 text-white/85 text-xs md:text-sm tracking-[0.25em] uppercase font-medium">
-            Trendy · Minimal · Affordable Luxe
+            {heroDesc}
           </p>
           <div className="mt-10 flex gap-3 justify-center flex-wrap">
             <a
@@ -112,7 +228,7 @@ function Index() {
               className="inline-block px-10 py-4 text-white text-[11px] uppercase tracking-[0.2em] font-medium hover:opacity-90 transition"
               style={{ background: "var(--brand)" }}
             >
-              Shop the Edit
+              {heroCtaText}
             </a>
             <a
               href={INSTAGRAM}
@@ -126,7 +242,7 @@ function Index() {
         </div>
       </header>
 
-      {/* Featured Grid */}
+      {/* Featured Products Grid */}
       <section id="shop" className="py-24 px-6 max-w-7xl mx-auto">
         <div className="flex justify-between items-end mb-12">
           <div>
@@ -152,30 +268,45 @@ function Index() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-foreground/5 border border-foreground/5">
-          {products.map((p) => (
-            <article key={p.name} className="group bg-background p-4 flex flex-col">
+          {showProducts.map((p) => (
+            <article key={p.id} className="group bg-background p-4 flex flex-col">
               <div className="aspect-[4/5] overflow-hidden mb-6" style={{ background: "var(--brand-soft)" }}>
-                <img
-                  src={p.img}
-                  alt={p.name}
-                  loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
+                {p.img ? (
+                  <img
+                    src={p.img as string}
+                    alt={p.name}
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-sm font-medium">{p.name}</h3>
                   <p className="text-xs text-muted-foreground mt-1">{p.material}</p>
                 </div>
-                <p className="text-sm" style={{ fontFamily: "var(--font-mono)", color: "var(--brand)" }}>
-                  {p.price}
-                </p>
+                <div className="text-right">
+                  <p className="text-sm" style={{ fontFamily: "var(--font-mono)", color: "var(--brand)" }}>
+                    Rs {p.price.toLocaleString()}
+                  </p>
+                  {p.compare_price && (
+                    <p className="text-xs text-muted-foreground line-through">
+                      Rs {p.compare_price.toLocaleString()}
+                    </p>
+                  )}
+                </div>
               </div>
               <a
                 href={WHATSAPP}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-6 w-full py-3 text-center border text-[10px] uppercase tracking-widest transition-colors"
+                className="mt-6 w-full py-3 text-center border text-[10px] uppercase tracking-widest transition-colors hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]"
                 style={{ borderColor: "var(--brand)", color: "var(--brand)" }}
               >
                 Order via DM
@@ -188,7 +319,7 @@ function Index() {
       {/* Features */}
       <section className="py-16 px-6 text-background" style={{ background: "var(--brand)" }}>
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {features.map((f) => (
+          {featuresItems.map((f) => (
             <div key={f.label}>
               <p
                 className="text-[10px] uppercase tracking-[0.2em] mb-2 text-white"
@@ -209,14 +340,13 @@ function Index() {
             className="text-[10px] uppercase tracking-tighter mb-4 block"
             style={{ fontFamily: "var(--font-mono)", color: "var(--brand)" }}
           >
-            02/ Our Story
+            02/ {storyTitle}
           </span>
           <p
             className="text-2xl md:text-3xl italic text-pretty leading-relaxed mb-8"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            "Accessories are the quiet language of style — small, deliberate pieces that carry
-            their own confidence."
+            {storyContent.startsWith('"') ? storyContent : `"${storyContent}"`}
           </p>
           <p className="text-[10px] uppercase tracking-widest font-medium" style={{ color: "var(--brand)" }}>
             By Areeqaan · Est. Pakistan
@@ -235,21 +365,15 @@ function Index() {
           />
           <div className="max-w-md">
             <h2 className="text-3xl italic mb-6" style={{ fontFamily: "var(--font-display)" }}>
-              Let's Connect
+              {contactTitle}
             </h2>
             <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-              New drops coming soon. Slide into our DMs to place an order or to be the first to
-              know when a piece you love is back in stock.
+              {contactContent}
             </p>
             <ul className="space-y-3 text-sm" style={{ fontFamily: "var(--font-mono)" }}>
               <li>
                 <a href={WHATSAPP} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--brand)" }}>
                   WhatsApp · +92 336 4246604
-                </a>
-              </li>
-              <li>
-                <a href="mailto:zeeshanarooj010@gmail.com" className="hover:underline" style={{ color: "var(--brand)" }}>
-                  zeeshanarooj010@gmail.com
                 </a>
               </li>
               <li className="flex gap-4 pt-2 text-[11px] uppercase tracking-widest">
