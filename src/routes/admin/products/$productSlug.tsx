@@ -24,11 +24,23 @@ function EditProductPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select(`*, product_images(*), product_videos(*), product_variants(*), product_collections(collection_id)`)
+        .select(`*, product_images(*), product_videos(*), product_variants(*)`)
         .eq("slug", productSlug)
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: productCollections = [] } = useQuery({
+    queryKey: ["admin-product-collections", productSlug],
+    enabled: !!data?.id,
+    queryFn: async () => {
+      const { data: pc } = await supabase
+        .from("product_collections")
+        .select("collection_id")
+        .eq("product_id", data!.id);
+      return pc ?? [];
     },
   });
 
@@ -146,6 +158,7 @@ function EditProductPage() {
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-gray-500">
         <AlertCircle size={32} className="text-red-400" />
         <p className="font-medium">Product not found</p>
+        {error && <p className="text-xs text-red-400 max-w-sm text-center">{(error as Error).message}</p>}
         <Link to="/admin/products">
           <Button variant="outline" size="sm">Back to Products</Button>
         </Link>
@@ -153,7 +166,7 @@ function EditProductPage() {
     );
   }
 
-  const selectedCollectionIds = (data.product_collections ?? []).map(
+  const selectedCollectionIds = productCollections.map(
     (pc: { collection_id: string }) => pc.collection_id
   );
 
