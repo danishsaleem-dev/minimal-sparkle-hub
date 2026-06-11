@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import hero1 from "@/assets/hero-1.jpg";
 import hero2 from "@/assets/hero-2.jpg";
@@ -227,9 +227,10 @@ function Index() {
           />
         </a>
         <div className="hidden md:flex gap-8 text-[11px] font-medium uppercase tracking-widest">
-          <a href="#shop" className="hover:text-[var(--brand)] transition-colors">Shop</a>
-          <a href="#story" className="hover:text-[var(--brand)] transition-colors">Story</a>
-          <a href="#contact" className="hover:text-[var(--brand)] transition-colors">Contact</a>
+          <Link to="/shop" className="hover:text-[var(--brand)] transition-colors">Shop</Link>
+          <Link to="/collections" className="hover:text-[var(--brand)] transition-colors">Collections</Link>
+          <Link to="/story" className="hover:text-[var(--brand)] transition-colors">Story</Link>
+          <Link to="/contact" className="hover:text-[var(--brand)] transition-colors">Contact</Link>
         </div>
         <a
           href={WHATSAPP}
@@ -262,13 +263,13 @@ function Index() {
             {heroDesc}
           </p>
           <div className="mt-10 flex gap-3 justify-center flex-wrap">
-            <a
-              href="#shop"
+            <Link
+              to="/shop"
               className="inline-block px-10 py-4 text-white text-[11px] uppercase tracking-[0.2em] font-medium hover:opacity-90 transition"
               style={{ background: "var(--brand)" }}
             >
               {heroCtaText}
-            </a>
+            </Link>
             <a
               href={INSTAGRAM}
               target="_blank"
@@ -445,10 +446,10 @@ function Index() {
             <div className="space-y-4">
               <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: "var(--brand)" }}>Shop</p>
               <ul className="text-[11px] text-muted-foreground space-y-2">
-                <li><a href="#shop" className="hover:text-foreground">All Pieces</a></li>
-                <li><a href="#shop" className="hover:text-foreground">Earrings</a></li>
-                <li><a href="#shop" className="hover:text-foreground">Rings</a></li>
-                <li><a href="#shop" className="hover:text-foreground">Necklaces</a></li>
+                <li><Link to="/shop" className="hover:text-foreground">All Pieces</Link></li>
+                <li><Link to="/collections" className="hover:text-foreground">Collections</Link></li>
+                <li><Link to="/story" className="hover:text-foreground">Our Story</Link></li>
+                <li><Link to="/contact" className="hover:text-foreground">Contact</Link></li>
               </ul>
             </div>
             <div className="space-y-4">
