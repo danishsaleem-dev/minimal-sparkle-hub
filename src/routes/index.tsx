@@ -251,7 +251,7 @@ function Index() {
         </div>
 
         <div className="relative z-10 max-w-2xl fade-up">
-          <img src={logo} alt="By Areeqaan" width={300} height={80} fetchPriority="high" decoding="sync" className="h-24 md:h-32 w-auto mx-auto mb-6 brightness-0 invert opacity-95" />
+          <img src={logo} alt="By Areeqaan" width={300} height={80} fetchPriority="high" decoding="sync" className="h-16 md:h-20 w-auto mx-auto mb-6 brightness-0 invert opacity-95" />
           <h1
             className="text-4xl md:text-6xl italic text-white text-balance leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
