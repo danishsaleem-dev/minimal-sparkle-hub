@@ -13,7 +13,8 @@ git config --global user.name Claude
 
 - Production branch: `main`
 - Local proxy (127.0.0.1) always returns 403 — push via PAT URL:
-  `git push https://<PAT>@github.com/danishsaleem-dev/minimal-sparkle-hub.git HEAD:main`
+  `GIT_ASKPASS=echo git push https://<PAT>@github.com/danishsaleem-dev/minimal-sparkle-hub.git HEAD:main`
+- After pushing, always run `git fetch origin main` to sync the local tracking ref
 
 ## Stack
 
