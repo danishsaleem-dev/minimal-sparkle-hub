@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { StorefrontLayout } from "@/components/StorefrontLayout";
+import { PageBanner } from "@/components/PageBanner";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const Route = createFileRoute("/story")({
@@ -46,26 +47,13 @@ function StoryPage() {
 
   return (
     <StorefrontLayout>
-      {/* Header */}
-      <section className="pt-16 pb-8 px-6 border-b border-foreground/5">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2" style={{ fontFamily: "var(--font-mono)" }}>
-            Who We Are
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold italic" style={{ fontFamily: "var(--font-display)" }}>
-            {heading}
-          </h1>
-        </div>
-      </section>
+      <PageBanner eyebrow="Who We Are" title={heading} subtitle={subheading} />
 
       {/* Story content */}
       <section className="max-w-5xl mx-auto px-6 py-14">
         <div className={`flex flex-col ${image ? "lg:flex-row" : ""} gap-12 lg:gap-20 items-start`}>
           {/* Text */}
           <div className="flex-1 max-w-2xl">
-            <p className="text-base text-muted-foreground italic mb-8" style={{ fontFamily: "var(--font-display)" }}>
-              {subheading}
-            </p>
             <div className="space-y-5">
               {paragraphs.map((para, i) => (
                 <p key={i} className="text-sm leading-relaxed text-foreground/80">

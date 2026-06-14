@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { StorefrontLayout } from "@/components/StorefrontLayout";
+import { PageBanner } from "@/components/PageBanner";
+import { resolveSocials } from "@/lib/storefront";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const Route = createFileRoute("/contact")({
@@ -36,11 +38,8 @@ function ContactPage() {
     staleTime: 60_000,
   });
 
-  const WHATSAPP_NUM = st.whatsapp_number || "923364246604";
-  const WHATSAPP = `https://wa.me/${WHATSAPP_NUM}`;
-  const INSTAGRAM = st.instagram_url || "https://www.instagram.com/byareeqaan/";
-  const TIKTOK = st.tiktok_url || "https://www.tiktok.com/@by_areeqan";
-  const FACEBOOK = st.facebook_url || "https://www.facebook.com/ByAreeqan/";
+  const { whatsappNumber: WHATSAPP_NUM, whatsapp: WHATSAPP, instagram: INSTAGRAM, tiktok: TIKTOK, facebook: FACEBOOK } =
+    resolveSocials(st);
   const EMAIL = st.contact_email || "";
 
   const channels = [
@@ -96,17 +95,11 @@ function ContactPage() {
 
   return (
     <StorefrontLayout>
-      {/* Header */}
-      <section className="pt-16 pb-8 px-6 border-b border-foreground/5">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2" style={{ fontFamily: "var(--font-mono)" }}>
-            Get in Touch
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold italic" style={{ fontFamily: "var(--font-display)" }}>
-            Contact Us
-          </h1>
-        </div>
-      </section>
+      <PageBanner
+        eyebrow="Get in Touch"
+        title="Contact Us"
+        subtitle="Questions, orders, or just want to say hi? We'd love to hear from you."
+      />
 
       <section className="max-w-5xl mx-auto px-6 py-14">
         {/* WhatsApp CTA */}

@@ -196,8 +196,8 @@ function AdminDashboard() {
               {recentProducts.map((product) => (
                 <Link
                   key={product.id}
-                  to="/admin/products/$productId"
-                  params={{ productId: product.id }}
+                  to="/admin/products/$productSlug"
+                  params={{ productSlug: product.id }}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
                 >
                   <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">

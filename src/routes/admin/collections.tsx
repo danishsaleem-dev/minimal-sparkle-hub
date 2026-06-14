@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -8,6 +8,8 @@ import {
   Trash2,
   Loader2,
   Check,
+  Package,
+  ArrowRight,
 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,6 +46,7 @@ type CollectionForm = z.infer<typeof collectionSchema>;
 
 function CollectionsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Collection | null>(null);
 
@@ -57,6 +60,20 @@ function CollectionsPage() {
       if (error) throw error;
       return data ?? [];
     },
+  });
+
+  // Product counts per collection (collection_id → number of products).
+  const { data: counts = {} } = useQuery({
+    queryKey: ["admin-collection-counts"],
+    queryFn: async () => {
+      const { data } = await supabase.from("product_collections").select("collection_id");
+      const map: Record<string, number> = {};
+      for (const row of (data ?? []) as Array<{ collection_id: string }>) {
+        map[row.collection_id] = (map[row.collection_id] ?? 0) + 1;
+      }
+      return map;
+    },
+    staleTime: 30_000,
   });
 
   const form = useForm<CollectionForm>({
@@ -158,47 +175,67 @@ function CollectionsPage() {
             {collections.map((col) => (
               <div
                 key={col.id}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate({ to: "/admin/products", search: { collection: col.slug } })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate({ to: "/admin/products", search: { collection: col.slug } });
+                  }
+                }}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md hover:border-violet-200 transition-all cursor-pointer flex flex-col text-left focus:outline-none focus:ring-2 focus:ring-violet-300"
               >
-                {col.image_url ? (
-                  <div className="h-28 bg-gray-50">
-                    <img src={col.image_url} alt={col.name} className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="h-28 bg-gradient-to-br from-violet-50 to-purple-50 flex items-center justify-center">
-                    <FolderOpen size={28} className="text-violet-200" />
-                  </div>
-                )}
-                <div className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-sm text-gray-900">{col.name}</p>
-                      <p className="text-xs text-gray-400 font-mono">{col.slug}</p>
+                <div className="relative">
+                  {col.image_url ? (
+                    <div className="h-28 bg-gray-50">
+                      <img src={col.image_url} alt={col.name} className="w-full h-full object-cover" />
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-gray-400 hover:text-violet-600 hover:bg-violet-50"
-                        onClick={() => openEdit(col)}
-                      >
-                        <Pencil size={13} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-gray-400 hover:text-red-500 hover:bg-red-50"
-                        onClick={() => {
-                          if (confirm(`Delete "${col.name}"?`)) deleteCol.mutate(col.id);
-                        }}
-                      >
-                        <Trash2 size={13} />
-                      </Button>
+                  ) : (
+                    <div className="h-28 bg-gradient-to-br from-violet-50 to-purple-50 flex items-center justify-center">
+                      <FolderOpen size={28} className="text-violet-200" />
                     </div>
+                  )}
+                  {/* Product count badge */}
+                  <span className="absolute top-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-gray-700 text-[11px] font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                    <Package size={11} className="text-violet-500" />
+                    {counts[col.id] ?? 0}
+                  </span>
+                  {/* Edit / delete */}
+                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-7 w-7 bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-500 hover:text-violet-600 shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEdit(col);
+                      }}
+                    >
+                      <Pencil size={13} />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-7 w-7 bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-500 hover:text-red-500 shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete "${col.name}"?`)) deleteCol.mutate(col.id);
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </Button>
                   </div>
+                </div>
+                <div className="p-3 flex-1 flex flex-col">
+                  <p className="font-semibold text-sm text-gray-900">{col.name}</p>
+                  <p className="text-xs text-gray-400 font-mono">{col.slug}</p>
                   {col.description && (
                     <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{col.description}</p>
                   )}
+                  <div className="flex items-center gap-1 mt-3 pt-2 border-t border-gray-50 text-xs font-medium text-violet-600 group-hover:gap-2 transition-all">
+                    View products <ArrowRight size={13} />
+                  </div>
                 </div>
               </div>
             ))}

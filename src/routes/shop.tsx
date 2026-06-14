@@ -1,8 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { StorefrontLayout } from "@/components/StorefrontLayout";
+import { ProductCard } from "@/components/ProductCard";
+import { PageBanner } from "@/components/PageBanner";
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/seo";
 
 export const Route = createFileRoute("/shop")({
@@ -102,17 +104,11 @@ function ShopPage() {
 
   return (
     <StorefrontLayout>
-      {/* Page header */}
-      <section className="pt-16 pb-8 px-6 border-b border-foreground/5">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2" style={{ fontFamily: "var(--font-mono)" }}>
-            All Pieces
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold italic" style={{ fontFamily: "var(--font-display)" }}>
-            The Collection
-          </h1>
-        </div>
-      </section>
+      <PageBanner
+        eyebrow="All Pieces"
+        title="The Collection"
+        subtitle="Trendy, minimal & affordable luxe — handpicked and delivered all over Pakistan."
+      />
 
       <section className="max-w-7xl mx-auto px-6 py-8 flex flex-col lg:flex-row gap-8">
         {/* Sidebar filters */}
@@ -248,32 +244,17 @@ function ShopPage() {
                   ? product.images[0]
                   : product.images;
                 return (
-                  <Link
+                  <ProductCard
                     key={product.id}
-                    to="/products/$slug"
-                    params={{ slug: product.slug ?? product.id }}
-                    className="group block"
-                  >
-                    <div className="aspect-[3/4] bg-foreground/5 overflow-hidden relative mb-3">
-                      {img ? (
-                        <img
-                          src={img}
-                          alt={product.name}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                          No image
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs font-medium leading-tight">{product.name}</p>
-                    {product.price && (
-                      <p className="text-xs text-muted-foreground mt-0.5">PKR {product.price.toLocaleString()}</p>
-                    )}
-                  </Link>
+                    variant="catalog"
+                    product={{
+                      id: product.id,
+                      name: product.name,
+                      slug: product.slug,
+                      price: product.price,
+                      img,
+                    }}
+                  />
                 );
               })}
             </div>

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { StorefrontLayout } from "@/components/StorefrontLayout";
+import { PageBanner } from "@/components/PageBanner";
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/seo";
 
 export const Route = createFileRoute("/collections")({
@@ -36,17 +37,11 @@ function CollectionsPage() {
 
   return (
     <StorefrontLayout>
-      {/* Header */}
-      <section className="pt-16 pb-8 px-6 border-b border-foreground/5">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2" style={{ fontFamily: "var(--font-mono)" }}>
-            Curated for you
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold italic" style={{ fontFamily: "var(--font-display)" }}>
-            Collections
-          </h1>
-        </div>
-      </section>
+      <PageBanner
+        eyebrow="Curated for you"
+        title="Collections"
+        subtitle="Edits grouped by mood and moment — find the pieces that speak to your style."
+      />
 
       <section className="max-w-7xl mx-auto px-6 py-14">
         {isLoading ? (

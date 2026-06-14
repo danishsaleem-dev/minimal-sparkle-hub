@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { resolveSocials } from "@/lib/storefront";
 import logo from "@/assets/logo.png";
 
 interface StorefrontLayoutProps {
@@ -44,12 +45,8 @@ export function StorefrontLayout({ children }: StorefrontLayoutProps) {
     (ann?.text as string)?.replace(/^"|"$/g, "") ??
     "New arrivals every week · Delivery all over Pakistan 🇵🇰";
 
-  const WHATSAPP = st.whatsapp_number
-    ? `https://wa.me/${st.whatsapp_number}`
-    : "https://wa.me/923364246604";
-  const INSTAGRAM = st.instagram_url || "https://www.instagram.com/byareeqaan/";
-  const TIKTOK = st.tiktok_url || "https://www.tiktok.com/@by_areeqan";
-  const FACEBOOK = st.facebook_url || "https://www.facebook.com/ByAreeqan/";
+  const { whatsapp: WHATSAPP, instagram: INSTAGRAM, tiktok: TIKTOK, facebook: FACEBOOK } =
+    resolveSocials(st);
 
   return (
     <div
@@ -75,9 +72,9 @@ export function StorefrontLayout({ children }: StorefrontLayoutProps) {
           <img
             src={logo}
             alt="By Areeqaan"
-            width={150}
-            height={40}
-            style={{ height: "40px", width: "auto" }}
+            width={170}
+            height={60}
+            style={{ height: "60px", width: "auto" }}
             className="block"
             decoding="async"
           />
@@ -109,11 +106,10 @@ export function StorefrontLayout({ children }: StorefrontLayoutProps) {
             <img
               src={logo}
               alt="By Areeqaan"
-              width={220}
+              width={180}
               height={60}
               loading="lazy"
               decoding="async"
-              className="h-16 w-auto"
             />
             <p className="text-xs text-muted-foreground leading-relaxed">
               Fashion accessories made for the everyday. Trendy, minimal, and affordable luxe —

@@ -12,6 +12,9 @@ import storyImg from "@/assets/story.jpg";
 import logo from "@/assets/logo.png";
 import { supabase } from "@/lib/supabase";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION, productListSchema } from "@/lib/seo";
+import { StorefrontLayout } from "@/components/StorefrontLayout";
+import { ProductCard } from "@/components/ProductCard";
+import { resolveSocials } from "@/lib/storefront";
 
 const PAGE_TITLE = `${SITE_NAME} — Minimal Fashion Accessories Pakistan`;
 const OG_IMAGE = hero1 as string;
@@ -118,11 +121,6 @@ function Index() {
   const hp = homepageData ?? {};
   const st = siteSettings ?? {};
 
-  const announcementText =
-    (hp.announcement?.text as string)?.replace(/^"|"$/g, "") ??
-    "New drops coming soon · Order via DM · Delivery all over Pakistan 🇵🇰";
-  const announcementEnabled = hp.announcement?.enabled !== false;
-
   const heroTitle = (hp.hero?.title as string)?.replace(/^"|"$/g, "") ?? "Tiny details.";
   const heroSubtitle = (hp.hero?.subtitle as string)?.replace(/^"|"$/g, "") ?? "Big statements.";
   const heroDesc =
@@ -153,12 +151,8 @@ function Index() {
     ? (hp.features.items as Array<{ label: string; text: string }>)
     : FALLBACK_FEATURES;
 
-  const WHATSAPP = st.whatsapp_number
-    ? `https://wa.me/${st.whatsapp_number}`
-    : "https://wa.me/923364246604";
-  const INSTAGRAM = st.instagram_url || "https://www.instagram.com/byareeqaan/";
-  const TIKTOK = st.tiktok_url || "https://www.tiktok.com/@by_areeqan";
-  const FACEBOOK = st.facebook_url || "https://www.facebook.com/ByAreeqan/";
+  const { whatsapp: WHATSAPP, instagram: INSTAGRAM, tiktok: TIKTOK, facebook: FACEBOOK } =
+    resolveSocials(st);
 
   // Products to show
   const showProducts =
@@ -193,55 +187,12 @@ function Index() {
   );
 
   return (
-    <div
-      className="min-h-screen bg-background text-foreground antialiased"
-      style={{ fontFamily: "var(--font-body)" }}
-    >
+    <StorefrontLayout>
       {/* Page-specific JSON-LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(ldProductList) }}
       />
-
-      {/* Announcement */}
-      {announcementEnabled && (
-        <div
-          className="w-full text-center py-2 text-[10px] uppercase tracking-[0.25em] text-background"
-          style={{ background: "var(--brand)", fontFamily: "var(--font-mono)" }}
-        >
-          {announcementText}
-        </div>
-      )}
-
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 w-full bg-background/85 backdrop-blur-md border-b border-foreground/5 px-6 flex justify-between items-center" style={{ height: "64px" }}>
-        <a href="#top" className="flex items-center">
-          <img
-            src={logo}
-            alt="By Areeqaan logo"
-            width={150}
-            height={40}
-            style={{ height: "40px", width: "auto" }}
-            className="block"
-            decoding="async"
-          />
-        </a>
-        <div className="hidden md:flex gap-8 text-[11px] font-medium uppercase tracking-widest">
-          <Link to="/shop" className="hover:text-[var(--brand)] transition-colors">Shop</Link>
-          <Link to="/collections" className="hover:text-[var(--brand)] transition-colors">Collections</Link>
-          <Link to="/story" className="hover:text-[var(--brand)] transition-colors">Story</Link>
-          <Link to="/contact" className="hover:text-[var(--brand)] transition-colors">Contact</Link>
-        </div>
-        <a
-          href={WHATSAPP}
-          target="_blank"
-          rel="noreferrer"
-          className="text-[10px] uppercase tracking-widest px-4 py-2 text-background hover:opacity-90 transition"
-          style={{ background: "var(--brand)", fontFamily: "var(--font-mono)" }}
-        >
-          Order on WhatsApp
-        </a>
-      </nav>
 
       {/* Hero */}
       <header id="top" className="relative h-[90vh] overflow-hidden flex items-center justify-center text-center px-6">
@@ -251,7 +202,7 @@ function Index() {
         </div>
 
         <div className="relative z-10 max-w-2xl fade-up">
-          <img src={logo} alt="By Areeqaan" width={300} height={80} fetchPriority="high" decoding="sync" className="h-16 md:h-20 w-auto mx-auto mb-6 brightness-0 invert opacity-95" />
+          <img src={logo} alt="By Areeqaan" width={200} height={80} fetchPriority="high" decoding="sync" className="mx-auto mb-6 brightness-0 invert opacity-95" />
           <h1
             className="text-4xl md:text-6xl italic text-white text-balance leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
@@ -309,52 +260,7 @@ function Index() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-foreground/5 border border-foreground/5">
           {showProducts.map((p) => (
-            <article key={p.id} className="group bg-background p-4 flex flex-col">
-              <div className="aspect-[4/5] overflow-hidden mb-6" style={{ background: "var(--brand-soft)" }}>
-                {p.img ? (
-                  <img
-                    src={p.img as string}
-                    alt={p.name}
-                    loading="lazy"
-                    decoding="async"
-                    width={400}
-                    height={500}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300">
-                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-sm font-medium">{p.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{p.material}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm" style={{ fontFamily: "var(--font-mono)", color: "var(--brand)" }}>
-                    Rs {p.price.toLocaleString()}
-                  </p>
-                  {p.compare_price && (
-                    <p className="text-xs text-muted-foreground line-through">
-                      Rs {p.compare_price.toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <a
-                href={WHATSAPP}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-6 w-full py-3 text-center border text-[10px] uppercase tracking-widest transition-colors hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]"
-                style={{ borderColor: "var(--brand)", color: "var(--brand)" }}
-              >
-                Order via DM
-              </a>
-            </article>
+            <ProductCard key={p.id} product={p} variant="featured" whatsappHref={WHATSAPP} />
           ))}
         </div>
       </section>
@@ -432,43 +338,7 @@ function Index() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-background border-t border-foreground/5 py-16 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12">
-          <div className="space-y-4 max-w-xs">
-            <img src={logo} alt="By Areeqaan" width={220} height={60} loading="lazy" decoding="async" className="h-12 w-auto" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Fashion accessories made for the everyday. Trendy, minimal, and affordable luxe —
-              handpicked with love in Pakistan.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-12 md:gap-24">
-            <div className="space-y-4">
-              <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: "var(--brand)" }}>Shop</p>
-              <ul className="text-[11px] text-muted-foreground space-y-2">
-                <li><Link to="/shop" className="hover:text-foreground">All Pieces</Link></li>
-                <li><Link to="/collections" className="hover:text-foreground">Collections</Link></li>
-                <li><Link to="/story" className="hover:text-foreground">Our Story</Link></li>
-                <li><Link to="/contact" className="hover:text-foreground">Contact</Link></li>
-              </ul>
-            </div>
-            <div className="space-y-4">
-              <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: "var(--brand)" }}>Connect</p>
-              <ul className="text-[11px] text-muted-foreground space-y-2">
-                <li><a href={INSTAGRAM} target="_blank" rel="noreferrer" className="hover:text-foreground">Instagram</a></li>
-                <li><a href={TIKTOK} target="_blank" rel="noreferrer" className="hover:text-foreground">TikTok</a></li>
-                <li><a href={FACEBOOK} target="_blank" rel="noreferrer" className="hover:text-foreground">Facebook</a></li>
-                <li><a href={WHATSAPP} target="_blank" rel="noreferrer" className="hover:text-foreground">WhatsApp</a></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-foreground/5 flex flex-col md:flex-row gap-2 justify-between items-center text-[9px] text-muted-foreground uppercase tracking-widest">
-          <p>&copy; {new Date().getFullYear()} By Areeqaan. All rights reserved.</p>
-          <p>Tiny details · Big statements</p>
-        </div>
-      </footer>
-    </div>
+    </StorefrontLayout>
   );
 }
 
